@@ -11,10 +11,10 @@ import (
 Individual test to be run by a tester. This is the interface which all
 children test types must conform to.
 */
-type testConfig[C, M, D any] struct {
+type TestConfig[C, M, D any] struct {
 	name            string
-	getTestFunction func(c C) reflect.Value
-	options         *TestOptions[C, M, D]
+	getTestFunction func(state *TestState[C, M, D]) reflect.Value
+	Options         *TestOptions[C, M, D]
 }
 
 /*
@@ -34,16 +34,16 @@ type TestState[C, M, D any] struct {
 /*
 Standard run command for all states
 */
-func (tc *testConfig[C, M, D]) run(state *TestState[C, M, D]) {
+func (tc *TestConfig[C, M, D]) run(state *TestState[C, M, D]) {
 
 	// Order all the options in ascending priority
-	sort.SliceStable(tc.options.options, func(i, j int) bool {
-		return tc.options.options[i].priority < tc.options.options[j].priority
+	sort.SliceStable(tc.Options.options, func(i, j int) bool {
+		return tc.Options.options[i].priority < tc.Options.options[j].priority
 	})
 
 	// Loop through all the options with value < 0
 	runFunctionIndex := 0
-	for i, option := range tc.options.options {
+	for i, option := range tc.Options.options {
 
 		// We stop processing at this point as we now need to
 		if option.priority >= 0 {
@@ -57,7 +57,7 @@ func (tc *testConfig[C, M, D]) run(state *TestState[C, M, D]) {
 	}
 
 	// Now we fetch the test function and run it with the args
-	f := tc.getTestFunction(state.Component)
+	f := tc.getTestFunction(state)
 	args := getCallArgs(state.Input)
 	reflectOutput := f.Call(args)
 	state.Output = make([]interface{}, len(reflectOutput))
@@ -68,7 +68,7 @@ func (tc *testConfig[C, M, D]) run(state *TestState[C, M, D]) {
 	}
 
 	// Loop through all the options with value >= 0
-	for _, option := range tc.options.options[runFunctionIndex:] {
+	for _, option := range tc.Options.options[runFunctionIndex:] {
 		option.applyFunction(state)
 	}
 

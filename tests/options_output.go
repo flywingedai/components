@@ -8,7 +8,7 @@ var DefaultOutputPriority = 1
 Directly check a value of a particular output.
 Default Priority = 1
 */
-func (to *TestOptions[C, M, D]) ValidateOutputByValue(
+func (to *TestOptions[C, M, D]) ValidateOutputValue(
 	argIndex int,
 	expectedValue interface{},
 ) *TestOptions[C, M, D] {
@@ -45,7 +45,7 @@ func (to *TestOptions[C, M, D]) ValidateOutput(
 Directly check all values of all outputs at once.
 Default Priority = 1
 */
-func (to *TestOptions[C, M, D]) ValidateOutputByValues(
+func (to *TestOptions[C, M, D]) ValidateOutputValues(
 	expectedValues []interface{},
 ) *TestOptions[C, M, D] {
 	testOptions := to.Copy()

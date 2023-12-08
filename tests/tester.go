@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -74,32 +73,10 @@ func NewFunctionTester[D any](
 }
 
 /*
-Create a new Tester with a specified Component, Mocks, and Data structure. Use
-tests.NullDataInitialization as the initDataFunction if you do not need
-to use the provided data object to facilitate your tester.
-*/
-func NewGinTester[P, C, M, D any](
-	newComponentFunction func(P) C,
-	buildMocksFunction func(*testing.T) (P, *M),
-	initDataFunction func() *D,
-) *Tester[P, C, M, D] {
-	tester := &Tester[P, C, M, D]{
-		newComponentFunction: newComponentFunction,
-		buildMocksFunction:   buildMocksFunction,
-		initDataFunction:     initDataFunction,
-		Options:              &TestOptions[C, M, D]{},
-	}
-
-	tester.Options = tester.Options.SetInput(0, func(state *TestState[C, M, D]) interface{} {
-		return convertToGinDataInterface(state.Data).GetCtx()
-	})
-
-	return tester
-}
-
-/*
 Create a new Tester with a specified Component and Mocks structure.
-No initialization step is called at this point.
+No initialization step is called for this kind of tester. The inferred
+type for the data is interface{}, but it will always be set to nil for
+tests created this way.
 */
 func NewTesterWithoutData[P, C, M any](
 	newComponentFunction func(P) C,
@@ -114,22 +91,6 @@ func NewTesterWithoutData[P, C, M any](
 	}
 
 	return tester
-}
-
-/*
-Create a new test that runs a method of the parent component
-*/
-func (tester *Tester[P, C, M, D]) NewMethodTest(
-	testName, methodName string,
-	options *TestOptions[C, M, D],
-) {
-	tester.tests = append(tester.tests, &TestConfig[C, M, D]{
-		name: testName,
-		getTestFunction: func(state *TestState[C, M, D]) reflect.Value {
-			return reflect.ValueOf(state.Component).MethodByName(methodName)
-		},
-		Options: options,
-	})
 }
 
 /*

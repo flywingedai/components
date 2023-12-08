@@ -101,7 +101,7 @@ func (to *TestOptions[C, M, D]) CustomOption(
 Create a new test which automatically fetches the named component
 method at runtime.
 */
-func (to *TestOptions[C, M, D]) CreateMethodTest(name, method string) *TestConfig[C, M, D] {
+func (to *TestOptions[C, M, D]) CreateMethodTest(method, name string) *TestConfig[C, M, D] {
 	return &TestConfig[C, M, D]{
 		name: name,
 		getTestFunction: func(state *TestState[C, M, D]) reflect.Value {
@@ -115,7 +115,7 @@ func (to *TestOptions[C, M, D]) CreateMethodTest(name, method string) *TestConfi
 Create a new test which automatically fetches the function given
 at runtime.
 */
-func (to *TestOptions[C, M, D]) CreateFunctionTest(name string, function interface{}) *TestConfig[C, M, D] {
+func (to *TestOptions[C, M, D]) CreateFunctionTest(function interface{}, name string) *TestConfig[C, M, D] {
 	return &TestConfig[C, M, D]{
 		name: name,
 		getTestFunction: func(_ *TestState[C, M, D]) reflect.Value {

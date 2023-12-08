@@ -1,5 +1,7 @@
 package tests
 
+import "reflect"
+
 /*
 The test option is the main struct for handling test options. The applyFunction
 should modify the args that are passed in, rather than returning anything.
@@ -83,7 +85,7 @@ to do, and the premade functions do not allow you to do it, you can add a
 generic option to allow you to do anything. It sends the whole state of the test
 into the "applyFunction" for you to modify as you please.
 */
-func (to *TestOptions[C, M, D]) New(
+func (to *TestOptions[C, M, D]) NewOption(
 	priority int,
 	applyFunction func(state *TestState[C, M, D]),
 ) *TestOptions[C, M, D] {
@@ -93,4 +95,32 @@ func (to *TestOptions[C, M, D]) New(
 		applyFunction: applyFunction,
 	})
 	return testOptions
+}
+
+/*
+Create a new test which automatically fetches the named component
+method at runtime.
+*/
+func (to *TestOptions[C, M, D]) CreateMethodTest(method, name string) *TestConfig[C, M, D] {
+	return &TestConfig[C, M, D]{
+		name: name,
+		getTestFunction: func(state *TestState[C, M, D]) reflect.Value {
+			return reflect.ValueOf(state.Component).MethodByName(method)
+		},
+		Options: to,
+	}
+}
+
+/*
+Create a new test which automatically fetches the function given
+at runtime.
+*/
+func (to *TestOptions[C, M, D]) CreateFunctionTest(function interface{}, name string) *TestConfig[C, M, D] {
+	return &TestConfig[C, M, D]{
+		name: name,
+		getTestFunction: func(_ *TestState[C, M, D]) reflect.Value {
+			return reflect.ValueOf(function)
+		},
+		Options: to,
+	}
 }

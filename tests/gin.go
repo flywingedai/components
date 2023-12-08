@@ -6,42 +6,98 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"testing"
 
 	"github.com/gin-gonic/gin"
 )
 
+///////////////
+// TEST DATA //
+///////////////
+
 type GinDataInterface interface {
+
+	// Fetch the test context
 	GetCtx() *gin.Context
+
+	// Fetch the test engine
 	GetEngine() *gin.Engine
+
+	// Fetch the test response recorder
 	GetRecorder() *httptest.ResponseRecorder
+
+	/*
+		Initialize the context, engine, and recorder. Is automatically
+		called by the tester if using the NewGinTester() function.
+	*/
+	PrepareForTest()
 }
 
 // Simple GIN context intialization
-type GinTestData struct {
+type GinData struct {
 	Ctx      *gin.Context
 	Engine   *gin.Engine
 	Recorder *httptest.ResponseRecorder
 }
 
-func (d *GinTestData) GetCtx() *gin.Context {
+func (d *GinData) GetCtx() *gin.Context {
 	return d.Ctx
 }
-func (d *GinTestData) GetEngine() *gin.Engine {
+func (d *GinData) GetEngine() *gin.Engine {
 	return d.Engine
 }
-func (d *GinTestData) GetRecorder() *httptest.ResponseRecorder {
+func (d *GinData) GetRecorder() *httptest.ResponseRecorder {
 	return d.Recorder
 }
-
-var InitGinTestData = func() *GinTestData {
+func (d *GinData) PrepareForTest() {
 	gin.SetMode(gin.TestMode)
 	recorder := httptest.NewRecorder()
 	ctx, engine := gin.CreateTestContext(recorder)
-	return &GinTestData{
-		Ctx:      ctx,
-		Engine:   engine,
-		Recorder: recorder,
+
+	d.Recorder = recorder
+	d.Ctx = ctx
+	d.Engine = engine
+}
+
+/*
+Meant to be used with tests.NewGinTester. You can create your
+own if you'd like, just ensure the data type that is returned
+conforms to GinDataInterface
+*/
+var InitGinData = func() *GinData {
+	data := &GinData{}
+	return data
+}
+
+////////////
+// TESTER //
+////////////
+
+/*
+Create a new Tester for methods requiring a gin test context. The Data
+structure must conform to the interface tests.GinDataInterface or else
+your test will panic. You may compose the tests.GinData into your
+data object to get this automatically.
+*/
+func NewGinTester[P, C, M, D any](
+	newComponentFunction func(P) C,
+	buildMocksFunction func(*testing.T) (P, *M),
+	initDataFunction func() *D,
+) *Tester[P, C, M, D] {
+	tester := &Tester[P, C, M, D]{
+		newComponentFunction: newComponentFunction,
+		buildMocksFunction:   buildMocksFunction,
+		initDataFunction:     initDataFunction,
+		Options:              &TestOptions[C, M, D]{},
 	}
+
+	tester.Options = tester.Options.SetInput(0, func(state *TestState[C, M, D]) interface{} {
+		ginData := convertToGinDataInterface(state.Data)
+		ginData.PrepareForTest()
+		return ginData.GetCtx()
+	})
+
+	return tester
 }
 
 ///////////
@@ -132,6 +188,75 @@ func (to *TestOptions[C, M, D]) Gin_ValidateBody(
 		},
 	})
 	return testOptions
+}
+
+/*
+Ensures the cookies that are written to the recorder match.
+*/
+func (to *TestOptions[C, M, D]) Gin_ValidateCookies(
+	expectedCookies []*http.Cookie,
+) *TestOptions[C, M, D] {
+	testOptions := to.Copy()
+	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
+		priority: DefaultOutputPriority,
+		applyFunction: func(state *TestState[C, M, D]) {
+			recorder := convertToGinDataInterface(state.Data).GetRecorder()
+			actualCookies := recorder.Result().Cookies()
+
+			// Make sure the same number of cookies are returned by both
+			state.Assertions.Equal(len(expectedCookies), len(actualCookies))
+
+			for _, expectedCookie := range expectedCookies {
+
+				foundExpectedCookie := false
+				for _, actualCookie := range actualCookies {
+
+					// Make sure cookies with the same name are identical
+					if expectedCookie.Name == actualCookie.Name {
+						state.Assertions.Equal(expectedCookie, actualCookie)
+						foundExpectedCookie = true
+						break
+					}
+
+				}
+
+				// Make sure each expected cookie is actually found
+				state.Assertions.Equal(true, foundExpectedCookie)
+			}
+		},
+	})
+	return testOptions
+}
+
+/*
+Shorthand to validate any portion of the gin response. As long as the
+input to each field is something other than the default value, that
+field will be checked
+*/
+func (to *TestOptions[C, M, D]) Gin_Validate(
+	ginValidateOptions GinValidateOptions,
+) *TestOptions[C, M, D] {
+	testOptions := to.Copy()
+
+	if ginValidateOptions.Code != 0 {
+		testOptions = testOptions.Gin_ValidateCode(ginValidateOptions.Code)
+	}
+
+	if ginValidateOptions.Body != nil {
+		testOptions = testOptions.Gin_ValidateBody(ginValidateOptions.Body)
+	}
+
+	if ginValidateOptions.Cookies != nil {
+		testOptions = testOptions.Gin_ValidateCookies(ginValidateOptions.Cookies)
+	}
+
+	return testOptions
+}
+
+type GinValidateOptions struct {
+	Code    int
+	Body    interface{}
+	Cookies []*http.Cookie
 }
 
 /////////////

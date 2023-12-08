@@ -190,6 +190,75 @@ func (to *TestOptions[C, M, D]) Gin_ValidateBody(
 	return testOptions
 }
 
+/*
+Ensures the cookies that are written to the recorder match.
+*/
+func (to *TestOptions[C, M, D]) Gin_ValidateCookies(
+	expectedCookies []*http.Cookie,
+) *TestOptions[C, M, D] {
+	testOptions := to.Copy()
+	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
+		priority: DefaultOutputPriority,
+		applyFunction: func(state *TestState[C, M, D]) {
+			recorder := convertToGinDataInterface(state.Data).GetRecorder()
+			actualCookies := recorder.Result().Cookies()
+
+			// Make sure the same number of cookies are returned by both
+			state.Assertions.Equal(len(expectedCookies), len(actualCookies))
+
+			for _, expectedCookie := range expectedCookies {
+
+				foundExpectedCookie := false
+				for _, actualCookie := range actualCookies {
+
+					// Make sure cookies with the same name are identical
+					if expectedCookie.Name == actualCookie.Name {
+						state.Assertions.Equal(expectedCookie, actualCookie)
+						foundExpectedCookie = true
+						break
+					}
+
+				}
+
+				// Make sure each expected cookie is actually found
+				state.Assertions.Equal(true, foundExpectedCookie)
+			}
+		},
+	})
+	return testOptions
+}
+
+/*
+Shorthand to validate any portion of the gin response. As long as the
+input to each field is something other than the default value, that
+field will be checked
+*/
+func (to *TestOptions[C, M, D]) Gin_Validate(
+	ginValidateOptions GinValidateOptions,
+) *TestOptions[C, M, D] {
+	testOptions := to.Copy()
+
+	if ginValidateOptions.Code != 0 {
+		testOptions = testOptions.Gin_ValidateCode(ginValidateOptions.Code)
+	}
+
+	if ginValidateOptions.Body != nil {
+		testOptions = testOptions.Gin_ValidateBody(ginValidateOptions.Body)
+	}
+
+	if ginValidateOptions.Cookies != nil {
+		testOptions = testOptions.Gin_ValidateCookies(ginValidateOptions.Cookies)
+	}
+
+	return testOptions
+}
+
+type GinValidateOptions struct {
+	Code    int
+	Body    interface{}
+	Cookies []*http.Cookie
+}
+
 /////////////
 // HELPERS //
 /////////////

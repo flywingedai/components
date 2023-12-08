@@ -85,7 +85,7 @@ to do, and the premade functions do not allow you to do it, you can add a
 generic option to allow you to do anything. It sends the whole state of the test
 into the "applyFunction" for you to modify as you please.
 */
-func (to *TestOptions[C, M, D]) CustomOption(
+func (to *TestOptions[C, M, D]) NewOption(
 	priority int,
 	applyFunction func(state *TestState[C, M, D]),
 ) *TestOptions[C, M, D] {

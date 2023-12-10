@@ -50,9 +50,9 @@ func (to *TestOptions[C, M, D]) Copy() *TestOptions[C, M, D] {
 }
 
 /*
-Combine creates a new TestOptions object with all the options provided combined.
+Append creates a new TestOptions object with all the options provided combined.
 */
-func (to *TestOptions[C, M, D]) Combine(
+func (to *TestOptions[C, M, D]) Append(
 	otherTestOptions ...*TestOptions[C, M, D],
 ) *TestOptions[C, M, D] {
 	testOptions := to.Copy()
@@ -98,12 +98,29 @@ func (to *TestOptions[C, M, D]) NewOption(
 }
 
 /*
+Create a new test based on the given function. By doing things this way, private
+methods can be tested as well by accessing them from the state at runtime.
+*/
+func (to *TestOptions[C, M, D]) CreateTest(
+	testName string,
+	getTestFunction func(state *TestState[C, M, D]) interface{},
+) *TestConfig[C, M, D] {
+	return &TestConfig[C, M, D]{
+		name: testName,
+		getTestFunction: func(state *TestState[C, M, D]) reflect.Value {
+			return reflect.ValueOf(getTestFunction(state))
+		},
+		Options: to,
+	}
+}
+
+/*
 Create a new test which automatically fetches the named component
 method at runtime.
 */
-func (to *TestOptions[C, M, D]) CreateMethodTest(method, name string) *TestConfig[C, M, D] {
+func (to *TestOptions[C, M, D]) CreateMethodTest(method, testName string) *TestConfig[C, M, D] {
 	return &TestConfig[C, M, D]{
-		name: name,
+		name: testName,
 		getTestFunction: func(state *TestState[C, M, D]) reflect.Value {
 			return reflect.ValueOf(state.Component).MethodByName(method)
 		},
@@ -115,9 +132,9 @@ func (to *TestOptions[C, M, D]) CreateMethodTest(method, name string) *TestConfi
 Create a new test which automatically fetches the function given
 at runtime.
 */
-func (to *TestOptions[C, M, D]) CreateFunctionTest(function interface{}, name string) *TestConfig[C, M, D] {
+func (to *TestOptions[C, M, D]) CreateFunctionTest(function interface{}, testName string) *TestConfig[C, M, D] {
 	return &TestConfig[C, M, D]{
-		name: name,
+		name: testName,
 		getTestFunction: func(_ *TestState[C, M, D]) reflect.Value {
 			return reflect.ValueOf(function)
 		},

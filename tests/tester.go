@@ -136,7 +136,7 @@ func (tester *Tester[P, C, M, D]) Test(t *testing.T) {
 
 			// Create the base objects for the test
 			c, m, d := tester.build(t)
-			test.Options = tester.Options.Combine(test.Options)
+			test.Options = tester.Options.Append(test.Options)
 
 			// Run the test with the parallel assertion and base objects
 			testState := TestState[C, M, D]{

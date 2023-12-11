@@ -18,11 +18,3 @@ func (to *TestOptions[C, M, D]) PrepareMocks(
 	})
 	return testOptions
 }
-
-/*
-Create a mocker object. This object allows normal mocks to be more easily
-accessed from test options
-*/
-func NewMocker() {
-
-}

@@ -390,8 +390,14 @@ func writeGinBody[C, M, D any](
 	value interface{},
 ) {
 	ctx := convertToGinDataInterface(state.Data).GetCtx()
-	body := io.NopCloser(bytes.NewReader(getJsonBytes(value)))
-	ctx.Request.Body = body
+
+	readCloser, ok := value.(io.ReadCloser)
+	if ok {
+		ctx.Request.Body = readCloser
+	} else {
+		body := io.NopCloser(bytes.NewReader(getJsonBytes(value)))
+		ctx.Request.Body = body
+	}
 }
 
 // Gin header write function

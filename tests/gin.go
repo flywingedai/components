@@ -116,12 +116,27 @@ func NewGinTester[P, C, M, D any](
 // INPUT //
 ///////////
 
-func (to *TestOptions[C, M, D]) Gin_SetCtx(
+/*
+Sets a specific value of the gin context prior to execution
+*/
+func (to *TestOptions[C, M, D]) Gin_SetCtxValue(
 	key string, value interface{},
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
 		ctx := convertToGinDataInterface(state.Data).GetCtx()
 		ctx.Set(key, value)
+	})
+}
+
+/*
+Sets a gin ctx key to a calculated value based on the state
+*/
+func (to *TestOptions[C, M, D]) Gin_SetCtx(
+	key string, valueFunction func(state *TestState[C, M, D]) interface{},
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		ctx := convertToGinDataInterface(state.Data).GetCtx()
+		ctx.Set(key, valueFunction(state))
 	})
 }
 

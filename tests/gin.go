@@ -55,6 +55,12 @@ func (d *GinData) PrepareForTest() {
 	recorder := httptest.NewRecorder()
 	ctx, engine := gin.CreateTestContext(recorder)
 
+	var err error
+	ctx.Request, err = http.NewRequest("", "", nil)
+	if err != nil {
+		panic(err)
+	}
+
 	d.Recorder = recorder
 	d.Ctx = ctx
 	d.Engine = engine
@@ -419,13 +425,6 @@ func writeGinBody[C, M, D any](
 	ctx := convertToGinDataInterface(state.Data).GetCtx()
 	body := io.NopCloser(bytes.NewReader(getJsonBytes(value)))
 
-	if ctx.Request == nil {
-		ctx.Request, err = http.NewRequest("", "", nil)
-		if err != nil {
-			panic(err)
-		}
-	}
-
 	ctx.Request.Body = body
 	if len(methodAndUrl) == 2 {
 		ctx.Request.Method = methodAndUrl[0]
@@ -444,13 +443,6 @@ func writeGinHeaders[C, M, D any](
 ) {
 	var err error
 	ctx := convertToGinDataInterface(state.Data).GetCtx()
-
-	if ctx.Request == nil {
-		ctx.Request, err = http.NewRequest("", "", nil)
-		if err != nil {
-			panic(err)
-		}
-	}
 
 	for key, value := range headers {
 		ctx.Request.Header.Set(key, value)
@@ -473,13 +465,6 @@ func writeGinCookies[C, M, D any](
 ) {
 	var err error
 	ctx := convertToGinDataInterface(state.Data).GetCtx()
-
-	if ctx.Request == nil {
-		ctx.Request, err = http.NewRequest("", "", nil)
-		if err != nil {
-			panic(err)
-		}
-	}
 
 	for _, cookie := range cookies {
 		ctx.Request.AddCookie(cookie)

@@ -147,7 +147,6 @@ will be sufficient.
 */
 func (to *TestOptions[C, M, D]) Gin_BodyValue(
 	value interface{},
-	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
 		writeGinBody(state, value)
@@ -161,7 +160,6 @@ will be sufficient.
 */
 func (to *TestOptions[C, M, D]) Gin_Body(
 	f func(state *TestState[C, M, D]) []interface{},
-	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
 		value := f(state)
@@ -174,7 +172,6 @@ Write a header to the request being made.
 */
 func (to *TestOptions[C, M, D]) Gin_HeaderValue(
 	key, value string,
-	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
 		writeGinHeaders(state, map[string]string{key: value})
@@ -186,7 +183,6 @@ Write header values to the request being made.
 */
 func (to *TestOptions[C, M, D]) Gin_HeaderValues(
 	headers map[string]string,
-	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
 		writeGinHeaders(state, headers)
@@ -198,7 +194,6 @@ Write a header to the request being made.
 */
 func (to *TestOptions[C, M, D]) Gin_Header(
 	key string, valueFunction func(state *TestState[C, M, D]) string,
-	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
 		writeGinHeaders(state, map[string]string{key: valueFunction(state)})
@@ -210,7 +205,6 @@ Write header values to the request being made.
 */
 func (to *TestOptions[C, M, D]) Gin_Headers(
 	headersFunction func(state *TestState[C, M, D]) map[string]string,
-	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
 		writeGinHeaders(state, headersFunction(state))
@@ -222,7 +216,6 @@ Write a header to the request being made.
 */
 func (to *TestOptions[C, M, D]) Gin_CookieValue(
 	cookie *http.Cookie,
-	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
 		writeGinCookies(state, []*http.Cookie{cookie})
@@ -234,7 +227,6 @@ Write header values to the request being made.
 */
 func (to *TestOptions[C, M, D]) Gin_CookieValues(
 	cookies []*http.Cookie,
-	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
 		writeGinCookies(state, cookies)
@@ -246,7 +238,6 @@ Write a header to the request being made.
 */
 func (to *TestOptions[C, M, D]) Gin_Cookie(
 	cookieFunction func(state *TestState[C, M, D]) *http.Cookie,
-	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
 		writeGinCookies(state, []*http.Cookie{cookieFunction(state)})
@@ -258,7 +249,6 @@ Write header values to the request being made.
 */
 func (to *TestOptions[C, M, D]) Gin_Cookies(
 	cookiesFunction func(state *TestState[C, M, D]) []*http.Cookie,
-	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
 		writeGinCookies(state, cookiesFunction(state))

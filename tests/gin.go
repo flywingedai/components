@@ -84,7 +84,8 @@ var InitGinData = func() *GinData {
 Create a new Tester for methods requiring a gin test context. The Data
 structure must conform to the interface tests.GinDataInterface or else
 your test will panic. You may compose the tests.GinData into your
-data object to get this automatically.
+data object to get this automatically. Preparation step will automatically
+occur at priority -100.
 */
 func NewGinTester[P, C, M, D any](
 	newComponentFunction func(P) C,
@@ -98,9 +99,13 @@ func NewGinTester[P, C, M, D any](
 		Options:              &TestOptions[C, M, D]{},
 	}
 
-	tester.Options = tester.Options.SetInput(0, func(state *TestState[C, M, D]) interface{} {
+	tester.Options = tester.Options.NewOption(-100, func(state *TestState[C, M, D]) {
 		ginData := convertToGinDataInterface(state.Data)
 		ginData.PrepareForTest()
+	})
+
+	tester.Options = tester.Options.SetInput(0, func(state *TestState[C, M, D]) interface{} {
+		ginData := convertToGinDataInterface(state.Data)
 		return ginData.GetCtx()
 	})
 

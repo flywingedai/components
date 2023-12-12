@@ -17,6 +17,9 @@ type testOption[C, M, D any] struct {
 	*/
 	priority int
 
+	// Used to facilitate option checkouts for easier iterative test creation.
+	tag string
+
 	/*
 		The applyFunction is what gets called by the TestOption interface to
 		make sure the test ran nominally
@@ -95,6 +98,36 @@ func (to *TestOptions[C, M, D]) NewOption(
 		applyFunction: applyFunction,
 	})
 	return testOptions
+}
+
+/*
+Create a tag which allows options to be "checked-out" later. This
+allows more simple control over options when writing iterative
+tests on each other.
+*/
+func (to *TestOptions[C, M, D]) Tag(
+	tag string,
+) *TestOptions[C, M, D] {
+	to.options[len(to.options)-1].tag = tag
+	return to
+}
+
+/*
+Checkout the most recent entry of the tag in the options. Return
+all options prior to that tag, including that tag. If the tag is
+not found, this will panic.
+*/
+func (to *TestOptions[C, M, D]) Checkout(
+	tag string,
+) *TestOptions[C, M, D] {
+	for i := len(to.options) - 1; i >= 0; i-- {
+		if to.options[i].tag == tag {
+			return &TestOptions[C, M, D]{
+				options: to.options[:i+1],
+			}
+		}
+	}
+	panic("could not find tag " + tag + " in TestOptions")
 }
 
 /*

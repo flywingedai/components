@@ -386,7 +386,10 @@ func writeGinHeaders[C, M, D any](
 	headers map[string]string,
 ) {
 	ctx := convertToGinDataInterface(state.Data).GetCtx()
-	ctx.Request.Header = http.Header{}
+
+	if ctx.Request.Header == nil {
+		ctx.Request.Header = http.Header{}
+	}
 
 	for key, value := range headers {
 		ctx.Request.Header.Set(key, value)

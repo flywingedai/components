@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -139,6 +140,142 @@ func (to *TestOptions[C, M, D]) Gin_WriteBody(
 		applyFunction: func(state *TestState[C, M, D]) {
 			value := f(state)
 			writeGinBody(state, value, methodAndUrl...)
+		},
+	})
+	return testOptions
+}
+
+/*
+Write a header to the request being made.
+*/
+func (to *TestOptions[C, M, D]) Gin_WriteHeaderValue(
+	key, value string,
+	methodAndUrl ...string,
+) *TestOptions[C, M, D] {
+	testOptions := to.Copy()
+	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
+		priority: DefaultInputPriority,
+		applyFunction: func(state *TestState[C, M, D]) {
+			writeGinHeaders(state, map[string]string{key: value}, methodAndUrl...)
+		},
+	})
+	return testOptions
+}
+
+/*
+Write header values to the request being made.
+*/
+func (to *TestOptions[C, M, D]) Gin_WriteHeaderValues(
+	headers map[string]string,
+	methodAndUrl ...string,
+) *TestOptions[C, M, D] {
+	testOptions := to.Copy()
+	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
+		priority: DefaultInputPriority,
+		applyFunction: func(state *TestState[C, M, D]) {
+			writeGinHeaders(state, headers, methodAndUrl...)
+		},
+	})
+	return testOptions
+}
+
+/*
+Write a header to the request being made.
+*/
+func (to *TestOptions[C, M, D]) Gin_WriteHeader(
+	key string, valueFunction func(state *TestState[C, M, D]) string,
+	methodAndUrl ...string,
+) *TestOptions[C, M, D] {
+	testOptions := to.Copy()
+	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
+		priority: DefaultInputPriority,
+		applyFunction: func(state *TestState[C, M, D]) {
+			writeGinHeaders(state, map[string]string{key: valueFunction(state)}, methodAndUrl...)
+		},
+	})
+	return testOptions
+}
+
+/*
+Write header values to the request being made.
+*/
+func (to *TestOptions[C, M, D]) Gin_WriteHeaders(
+	headersFunction func(state *TestState[C, M, D]) map[string]string,
+	methodAndUrl ...string,
+) *TestOptions[C, M, D] {
+	testOptions := to.Copy()
+	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
+		priority: DefaultInputPriority,
+		applyFunction: func(state *TestState[C, M, D]) {
+			writeGinHeaders(state, headersFunction(state), methodAndUrl...)
+		},
+	})
+	return testOptions
+}
+
+/*
+Write a header to the request being made.
+*/
+func (to *TestOptions[C, M, D]) Gin_AddCookieValue(
+	cookie *http.Cookie,
+	methodAndUrl ...string,
+) *TestOptions[C, M, D] {
+	testOptions := to.Copy()
+	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
+		priority: DefaultInputPriority,
+		applyFunction: func(state *TestState[C, M, D]) {
+			writeGinCookies(state, []*http.Cookie{cookie}, methodAndUrl...)
+		},
+	})
+	return testOptions
+}
+
+/*
+Write header values to the request being made.
+*/
+func (to *TestOptions[C, M, D]) Gin_AddCookieValues(
+	cookies []*http.Cookie,
+	methodAndUrl ...string,
+) *TestOptions[C, M, D] {
+	testOptions := to.Copy()
+	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
+		priority: DefaultInputPriority,
+		applyFunction: func(state *TestState[C, M, D]) {
+			writeGinCookies(state, cookies, methodAndUrl...)
+		},
+	})
+	return testOptions
+}
+
+/*
+Write a header to the request being made.
+*/
+func (to *TestOptions[C, M, D]) Gin_AddCookie(
+	cookieFunction func(state *TestState[C, M, D]) *http.Cookie,
+	methodAndUrl ...string,
+) *TestOptions[C, M, D] {
+	testOptions := to.Copy()
+	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
+		priority: DefaultInputPriority,
+		applyFunction: func(state *TestState[C, M, D]) {
+			writeGinCookies(state, []*http.Cookie{cookieFunction(state)}, methodAndUrl...)
+		},
+	})
+	return testOptions
+}
+
+/*
+Write header values to the request being made.
+*/
+func (to *TestOptions[C, M, D]) Gin_AddCookies(
+	cookiesFunction func(state *TestState[C, M, D]) []*http.Cookie,
+	methodAndUrl ...string,
+) *TestOptions[C, M, D] {
+	testOptions := to.Copy()
+	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
+		priority: DefaultInputPriority,
+		applyFunction: func(state *TestState[C, M, D]) {
+			writeGinCookies(state, cookiesFunction(state), methodAndUrl...)
 		},
 	})
 	return testOptions
@@ -280,14 +417,87 @@ func writeGinBody[C, M, D any](
 ) {
 	var err error
 	ctx := convertToGinDataInterface(state.Data).GetCtx()
-	bufferData := bytes.NewBuffer(getJsonBytes(value))
-	if len(methodAndUrl) == 2 {
-		ctx.Request, err = http.NewRequest(methodAndUrl[0], methodAndUrl[1], bufferData)
-	} else {
-		ctx.Request, err = http.NewRequest("", "", bufferData)
+	body := io.NopCloser(bytes.NewReader(getJsonBytes(value)))
+
+	if ctx.Request == nil {
+		ctx.Request, err = http.NewRequest("", "", nil)
+		if err != nil {
+			panic(err)
+		}
 	}
-	if err != nil {
-		panic(err)
+
+	ctx.Request.Body = body
+	if len(methodAndUrl) == 2 {
+		ctx.Request.Method = methodAndUrl[0]
+		ctx.Request.URL, err = url.Parse(methodAndUrl[1])
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+// Gin header write function
+func writeGinHeaders[C, M, D any](
+	state *TestState[C, M, D],
+	headers map[string]string,
+	methodAndUrl ...string,
+) {
+	var err error
+	ctx := convertToGinDataInterface(state.Data).GetCtx()
+
+	if ctx.Request == nil {
+		ctx.Request, err = http.NewRequest("", "", nil)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	for key, value := range headers {
+		ctx.Request.Header.Set(key, value)
+	}
+
+	if len(methodAndUrl) == 2 {
+		ctx.Request.Method = methodAndUrl[0]
+		ctx.Request.URL, err = url.Parse(methodAndUrl[1])
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+// Gin cookie write function
+func writeGinCookies[C, M, D any](
+	state *TestState[C, M, D],
+	cookies []*http.Cookie,
+	methodAndUrl ...string,
+) {
+	var err error
+	ctx := convertToGinDataInterface(state.Data).GetCtx()
+
+	if ctx.Request == nil {
+		ctx.Request, err = http.NewRequest("", "", nil)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	for _, cookie := range cookies {
+		ctx.Request.AddCookie(cookie)
+	}
+
+	if len(methodAndUrl) == 2 {
+		ctx.Request.Method = methodAndUrl[0]
+		ctx.Request.URL, err = url.Parse(methodAndUrl[1])
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func SimpleCookie(name, value string) *http.Cookie {
+	return &http.Cookie{
+		Name:  name,
+		Value: value,
 	}
 }
 

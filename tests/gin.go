@@ -116,6 +116,15 @@ func NewGinTester[P, C, M, D any](
 // INPUT //
 ///////////
 
+func (to *TestOptions[C, M, D]) Gin_SetCtx(
+	key string, value interface{},
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		ctx := convertToGinDataInterface(state.Data).GetCtx()
+		ctx.Set(key, value)
+	})
+}
+
 func (to *TestOptions[C, M, D]) Gin_SetMethodAndURL(
 	method, url string,
 ) *TestOptions[C, M, D] {
@@ -136,7 +145,7 @@ value based on the options, use WriteGinBody() instead. You can omit
 the args to method and url to leave them empty. For most tests, that
 will be sufficient.
 */
-func (to *TestOptions[C, M, D]) Gin_WriteBodyValue(
+func (to *TestOptions[C, M, D]) Gin_BodyValue(
 	value interface{},
 	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
@@ -150,7 +159,7 @@ Write a value to the test request body. You can omit the args
 to method and url to leave them empty. For most tests, that
 will be sufficient.
 */
-func (to *TestOptions[C, M, D]) Gin_WriteBody(
+func (to *TestOptions[C, M, D]) Gin_Body(
 	f func(state *TestState[C, M, D]) []interface{},
 	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
@@ -163,7 +172,7 @@ func (to *TestOptions[C, M, D]) Gin_WriteBody(
 /*
 Write a header to the request being made.
 */
-func (to *TestOptions[C, M, D]) Gin_WriteHeaderValue(
+func (to *TestOptions[C, M, D]) Gin_HeaderValue(
 	key, value string,
 	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
@@ -175,7 +184,7 @@ func (to *TestOptions[C, M, D]) Gin_WriteHeaderValue(
 /*
 Write header values to the request being made.
 */
-func (to *TestOptions[C, M, D]) Gin_WriteHeaderValues(
+func (to *TestOptions[C, M, D]) Gin_HeaderValues(
 	headers map[string]string,
 	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
@@ -187,7 +196,7 @@ func (to *TestOptions[C, M, D]) Gin_WriteHeaderValues(
 /*
 Write a header to the request being made.
 */
-func (to *TestOptions[C, M, D]) Gin_WriteHeader(
+func (to *TestOptions[C, M, D]) Gin_Header(
 	key string, valueFunction func(state *TestState[C, M, D]) string,
 	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
@@ -199,7 +208,7 @@ func (to *TestOptions[C, M, D]) Gin_WriteHeader(
 /*
 Write header values to the request being made.
 */
-func (to *TestOptions[C, M, D]) Gin_WriteHeaders(
+func (to *TestOptions[C, M, D]) Gin_Headers(
 	headersFunction func(state *TestState[C, M, D]) map[string]string,
 	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
@@ -211,7 +220,7 @@ func (to *TestOptions[C, M, D]) Gin_WriteHeaders(
 /*
 Write a header to the request being made.
 */
-func (to *TestOptions[C, M, D]) Gin_AddCookieValue(
+func (to *TestOptions[C, M, D]) Gin_CookieValue(
 	cookie *http.Cookie,
 	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
@@ -223,7 +232,7 @@ func (to *TestOptions[C, M, D]) Gin_AddCookieValue(
 /*
 Write header values to the request being made.
 */
-func (to *TestOptions[C, M, D]) Gin_AddCookieValues(
+func (to *TestOptions[C, M, D]) Gin_CookieValues(
 	cookies []*http.Cookie,
 	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
@@ -235,7 +244,7 @@ func (to *TestOptions[C, M, D]) Gin_AddCookieValues(
 /*
 Write a header to the request being made.
 */
-func (to *TestOptions[C, M, D]) Gin_AddCookie(
+func (to *TestOptions[C, M, D]) Gin_Cookie(
 	cookieFunction func(state *TestState[C, M, D]) *http.Cookie,
 	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
@@ -247,7 +256,7 @@ func (to *TestOptions[C, M, D]) Gin_AddCookie(
 /*
 Write header values to the request being made.
 */
-func (to *TestOptions[C, M, D]) Gin_AddCookies(
+func (to *TestOptions[C, M, D]) Gin_Cookies(
 	cookiesFunction func(state *TestState[C, M, D]) []*http.Cookie,
 	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {

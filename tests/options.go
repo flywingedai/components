@@ -130,6 +130,18 @@ func (to *TestOptions[C, M, D]) Checkout(
 	panic("could not find tag " + tag + " in TestOptions")
 }
 
+func (to *TestOptions[C, M, D]) copyAndAppend(
+	priority int,
+	applyFunction func(state *TestState[C, M, D]),
+) *TestOptions[C, M, D] {
+	testOptions := to.Copy()
+	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
+		priority:      priority,
+		applyFunction: applyFunction,
+	})
+	return testOptions
+}
+
 /*
 Create a new test based on the given function. By doing things this way, private
 methods can be tested as well by accessing them from the state at runtime.

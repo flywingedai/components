@@ -12,14 +12,9 @@ func (to *TestOptions[C, M, D]) ValidateOutputValue(
 	argIndex int,
 	expectedValue interface{},
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultOutputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			assertInterfaceEqual(state.Assertions, expectedValue, state.Output[argIndex])
-		},
+	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
+		assertInterfaceEqual(state.Assertions, expectedValue, state.Output[argIndex])
 	})
-	return testOptions
 }
 
 /*
@@ -30,15 +25,10 @@ func (to *TestOptions[C, M, D]) ValidateOutput(
 	argIndex int,
 	f func(state *TestState[C, M, D]) interface{},
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultOutputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			expectedValue := f(state)
-			assertInterfaceEqual(state.Assertions, expectedValue, state.Output[argIndex])
-		},
+	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
+		expectedValue := f(state)
+		assertInterfaceEqual(state.Assertions, expectedValue, state.Output[argIndex])
 	})
-	return testOptions
 }
 
 /*
@@ -48,16 +38,11 @@ Default Priority = 1
 func (to *TestOptions[C, M, D]) ValidateOutputValues(
 	expectedValues []interface{},
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultOutputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			for index, value := range state.Output {
-				assertInterfaceEqual(state.Assertions, expectedValues[index], value)
-			}
-		},
+	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
+		for index, value := range state.Output {
+			assertInterfaceEqual(state.Assertions, expectedValues[index], value)
+		}
 	})
-	return testOptions
 }
 
 /*
@@ -67,17 +52,12 @@ Default Priority = 1
 func (to *TestOptions[C, M, D]) ValidateOutputs(
 	f func(state *TestState[C, M, D]) []interface{},
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultOutputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			expectedValues := f(state)
-			for index, value := range state.Output {
-				assertInterfaceEqual(state.Assertions, expectedValues[index], value)
-			}
-		},
+	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
+		expectedValues := f(state)
+		for index, value := range state.Output {
+			assertInterfaceEqual(state.Assertions, expectedValues[index], value)
+		}
 	})
-	return testOptions
 }
 
 /////////////

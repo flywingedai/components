@@ -114,20 +114,15 @@ func NewGinTester[P, C, M, D any](
 func (to *TestOptions[C, M, D]) Gin_SetMethodAndURL(
 	method, url string,
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultInputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			var err error
-			ctx := convertToGinDataInterface(state.Data).GetCtx()
-			ctx.Request.Method = method
-			ctx.Request.URL, err = urlpkg.Parse(url)
-			if err != nil {
-				panic(err)
-			}
-		},
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		var err error
+		ctx := convertToGinDataInterface(state.Data).GetCtx()
+		ctx.Request.Method = method
+		ctx.Request.URL, err = urlpkg.Parse(url)
+		if err != nil {
+			panic(err)
+		}
 	})
-	return testOptions
 }
 
 /*
@@ -140,14 +135,9 @@ func (to *TestOptions[C, M, D]) Gin_WriteBodyValue(
 	value interface{},
 	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultInputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			writeGinBody(state, value)
-		},
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		writeGinBody(state, value)
 	})
-	return testOptions
 }
 
 /*
@@ -159,15 +149,10 @@ func (to *TestOptions[C, M, D]) Gin_WriteBody(
 	f func(state *TestState[C, M, D]) []interface{},
 	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultInputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			value := f(state)
-			writeGinBody(state, value)
-		},
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		value := f(state)
+		writeGinBody(state, value)
 	})
-	return testOptions
 }
 
 /*
@@ -177,14 +162,9 @@ func (to *TestOptions[C, M, D]) Gin_WriteHeaderValue(
 	key, value string,
 	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultInputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			writeGinHeaders(state, map[string]string{key: value})
-		},
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		writeGinHeaders(state, map[string]string{key: value})
 	})
-	return testOptions
 }
 
 /*
@@ -194,14 +174,9 @@ func (to *TestOptions[C, M, D]) Gin_WriteHeaderValues(
 	headers map[string]string,
 	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultInputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			writeGinHeaders(state, headers)
-		},
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		writeGinHeaders(state, headers)
 	})
-	return testOptions
 }
 
 /*
@@ -211,14 +186,9 @@ func (to *TestOptions[C, M, D]) Gin_WriteHeader(
 	key string, valueFunction func(state *TestState[C, M, D]) string,
 	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultInputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			writeGinHeaders(state, map[string]string{key: valueFunction(state)})
-		},
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		writeGinHeaders(state, map[string]string{key: valueFunction(state)})
 	})
-	return testOptions
 }
 
 /*
@@ -228,14 +198,9 @@ func (to *TestOptions[C, M, D]) Gin_WriteHeaders(
 	headersFunction func(state *TestState[C, M, D]) map[string]string,
 	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultInputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			writeGinHeaders(state, headersFunction(state))
-		},
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		writeGinHeaders(state, headersFunction(state))
 	})
-	return testOptions
 }
 
 /*
@@ -245,14 +210,9 @@ func (to *TestOptions[C, M, D]) Gin_AddCookieValue(
 	cookie *http.Cookie,
 	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultInputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			writeGinCookies(state, []*http.Cookie{cookie})
-		},
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		writeGinCookies(state, []*http.Cookie{cookie})
 	})
-	return testOptions
 }
 
 /*
@@ -262,14 +222,9 @@ func (to *TestOptions[C, M, D]) Gin_AddCookieValues(
 	cookies []*http.Cookie,
 	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultInputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			writeGinCookies(state, cookies)
-		},
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		writeGinCookies(state, cookies)
 	})
-	return testOptions
 }
 
 /*
@@ -279,14 +234,9 @@ func (to *TestOptions[C, M, D]) Gin_AddCookie(
 	cookieFunction func(state *TestState[C, M, D]) *http.Cookie,
 	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultInputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			writeGinCookies(state, []*http.Cookie{cookieFunction(state)})
-		},
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		writeGinCookies(state, []*http.Cookie{cookieFunction(state)})
 	})
-	return testOptions
 }
 
 /*
@@ -296,14 +246,9 @@ func (to *TestOptions[C, M, D]) Gin_AddCookies(
 	cookiesFunction func(state *TestState[C, M, D]) []*http.Cookie,
 	methodAndUrl ...string,
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultInputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			writeGinCookies(state, cookiesFunction(state))
-		},
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		writeGinCookies(state, cookiesFunction(state))
 	})
-	return testOptions
 }
 
 ////////////
@@ -316,15 +261,10 @@ Ensures the http code that's written to the recorder matches
 func (to *TestOptions[C, M, D]) Gin_ValidateCode(
 	code int,
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultOutputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			recorder := convertToGinDataInterface(state.Data).GetRecorder()
-			state.Assertions.Equal(recorder.Code, code)
-		},
+	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
+		recorder := convertToGinDataInterface(state.Data).GetRecorder()
+		state.Assertions.Equal(recorder.Code, code)
 	})
-	return testOptions
 }
 
 /*
@@ -333,23 +273,19 @@ Ensures the body of the recorder matches the data passed in.
 func (to *TestOptions[C, M, D]) Gin_ValidateBody(
 	expectedBody interface{},
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultOutputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
+	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
 
-			// Grab the response bytes
-			recorder := convertToGinDataInterface(state.Data).GetRecorder()
-			responseBytes, err := io.ReadAll(recorder.Result().Body)
-			if err != nil {
-				panic(err)
-			}
+		// Grab the response bytes
+		recorder := convertToGinDataInterface(state.Data).GetRecorder()
+		responseBytes, err := io.ReadAll(recorder.Result().Body)
+		if err != nil {
+			panic(err)
+		}
 
-			// Assert equality
-			state.Assertions.Equal(string(responseBytes), string(getJsonBytes(expectedBody)))
-		},
+		// Assert equality
+		state.Assertions.Equal(string(responseBytes), string(getJsonBytes(expectedBody)))
+
 	})
-	return testOptions
 }
 
 /*
@@ -358,36 +294,31 @@ Ensures the cookies that are written to the recorder match.
 func (to *TestOptions[C, M, D]) Gin_ValidateCookies(
 	expectedCookies []*http.Cookie,
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultOutputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			recorder := convertToGinDataInterface(state.Data).GetRecorder()
-			actualCookies := recorder.Result().Cookies()
+	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
+		recorder := convertToGinDataInterface(state.Data).GetRecorder()
+		actualCookies := recorder.Result().Cookies()
 
-			// Make sure the same number of cookies are returned by both
-			state.Assertions.Equal(len(expectedCookies), len(actualCookies))
+		// Make sure the same number of cookies are returned by both
+		state.Assertions.Equal(len(expectedCookies), len(actualCookies))
 
-			for _, expectedCookie := range expectedCookies {
+		for _, expectedCookie := range expectedCookies {
 
-				foundExpectedCookie := false
-				for _, actualCookie := range actualCookies {
+			foundExpectedCookie := false
+			for _, actualCookie := range actualCookies {
 
-					// Make sure cookies with the same name are identical
-					if expectedCookie.Name == actualCookie.Name {
-						state.Assertions.Equal(expectedCookie, actualCookie)
-						foundExpectedCookie = true
-						break
-					}
-
+				// Make sure cookies with the same name are identical
+				if expectedCookie.Name == actualCookie.Name {
+					state.Assertions.Equal(expectedCookie, actualCookie)
+					foundExpectedCookie = true
+					break
 				}
 
-				// Make sure each expected cookie is actually found
-				state.Assertions.Equal(true, foundExpectedCookie)
 			}
-		},
+
+			// Make sure each expected cookie is actually found
+			state.Assertions.Equal(true, foundExpectedCookie)
+		}
 	})
-	return testOptions
 }
 
 /*
@@ -450,6 +381,7 @@ func writeGinHeaders[C, M, D any](
 	headers map[string]string,
 ) {
 	ctx := convertToGinDataInterface(state.Data).GetCtx()
+	ctx.Request.Header = http.Header{}
 
 	for key, value := range headers {
 		ctx.Request.Header.Set(key, value)

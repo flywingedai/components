@@ -10,15 +10,10 @@ func (to *TestOptions[C, M, D]) SetInputByValue(
 	argIndex int,
 	value interface{},
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultInputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			state.Input = expandInput(state.Input, argIndex)
-			(state.Input)[argIndex] = value
-		},
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		state.Input = expandInput(state.Input, argIndex)
+		(state.Input)[argIndex] = value
 	})
-	return testOptions
 }
 
 /*
@@ -29,15 +24,10 @@ func (to *TestOptions[C, M, D]) SetInput(
 	argIndex int,
 	f func(state *TestState[C, M, D]) interface{},
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultInputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			state.Input = expandInput(state.Input, argIndex)
-			(state.Input)[argIndex] = f(state)
-		},
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		state.Input = expandInput(state.Input, argIndex)
+		(state.Input)[argIndex] = f(state)
 	})
-	return testOptions
 }
 
 /*
@@ -47,14 +37,9 @@ Default Priority = -1
 func (to *TestOptions[C, M, D]) SetInputsByValue(
 	values []interface{},
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultInputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			copy(state.Input, values)
-		},
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		copy(state.Input, values)
 	})
-	return testOptions
 }
 
 /*
@@ -64,15 +49,10 @@ Default Priority = -1
 func (to *TestOptions[C, M, D]) SetInputs(
 	f func(state *TestState[C, M, D]) []interface{},
 ) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority: DefaultInputPriority,
-		applyFunction: func(state *TestState[C, M, D]) {
-			values := f(state)
-			copy(state.Input, values)
-		},
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		values := f(state)
+		copy(state.Input, values)
 	})
-	return testOptions
 }
 
 /////////////

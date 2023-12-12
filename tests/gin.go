@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
+	urlpkg "net/url"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -111,6 +111,25 @@ func NewGinTester[P, C, M, D any](
 // INPUT //
 ///////////
 
+func (to *TestOptions[C, M, D]) Gin_SetMethodAndURL(
+	method, url string,
+) *TestOptions[C, M, D] {
+	testOptions := to.Copy()
+	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
+		priority: DefaultInputPriority,
+		applyFunction: func(state *TestState[C, M, D]) {
+			var err error
+			ctx := convertToGinDataInterface(state.Data).GetCtx()
+			ctx.Request.Method = method
+			ctx.Request.URL, err = urlpkg.Parse(url)
+			if err != nil {
+				panic(err)
+			}
+		},
+	})
+	return testOptions
+}
+
 /*
 Write a specific body value to the test. If you need to write this
 value based on the options, use WriteGinBody() instead. You can omit
@@ -125,7 +144,7 @@ func (to *TestOptions[C, M, D]) Gin_WriteBodyValue(
 	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
 		priority: DefaultInputPriority,
 		applyFunction: func(state *TestState[C, M, D]) {
-			writeGinBody(state, value, methodAndUrl...)
+			writeGinBody(state, value)
 		},
 	})
 	return testOptions
@@ -145,7 +164,7 @@ func (to *TestOptions[C, M, D]) Gin_WriteBody(
 		priority: DefaultInputPriority,
 		applyFunction: func(state *TestState[C, M, D]) {
 			value := f(state)
-			writeGinBody(state, value, methodAndUrl...)
+			writeGinBody(state, value)
 		},
 	})
 	return testOptions
@@ -162,7 +181,7 @@ func (to *TestOptions[C, M, D]) Gin_WriteHeaderValue(
 	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
 		priority: DefaultInputPriority,
 		applyFunction: func(state *TestState[C, M, D]) {
-			writeGinHeaders(state, map[string]string{key: value}, methodAndUrl...)
+			writeGinHeaders(state, map[string]string{key: value})
 		},
 	})
 	return testOptions
@@ -179,7 +198,7 @@ func (to *TestOptions[C, M, D]) Gin_WriteHeaderValues(
 	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
 		priority: DefaultInputPriority,
 		applyFunction: func(state *TestState[C, M, D]) {
-			writeGinHeaders(state, headers, methodAndUrl...)
+			writeGinHeaders(state, headers)
 		},
 	})
 	return testOptions
@@ -196,7 +215,7 @@ func (to *TestOptions[C, M, D]) Gin_WriteHeader(
 	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
 		priority: DefaultInputPriority,
 		applyFunction: func(state *TestState[C, M, D]) {
-			writeGinHeaders(state, map[string]string{key: valueFunction(state)}, methodAndUrl...)
+			writeGinHeaders(state, map[string]string{key: valueFunction(state)})
 		},
 	})
 	return testOptions
@@ -213,7 +232,7 @@ func (to *TestOptions[C, M, D]) Gin_WriteHeaders(
 	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
 		priority: DefaultInputPriority,
 		applyFunction: func(state *TestState[C, M, D]) {
-			writeGinHeaders(state, headersFunction(state), methodAndUrl...)
+			writeGinHeaders(state, headersFunction(state))
 		},
 	})
 	return testOptions
@@ -230,7 +249,7 @@ func (to *TestOptions[C, M, D]) Gin_AddCookieValue(
 	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
 		priority: DefaultInputPriority,
 		applyFunction: func(state *TestState[C, M, D]) {
-			writeGinCookies(state, []*http.Cookie{cookie}, methodAndUrl...)
+			writeGinCookies(state, []*http.Cookie{cookie})
 		},
 	})
 	return testOptions
@@ -247,7 +266,7 @@ func (to *TestOptions[C, M, D]) Gin_AddCookieValues(
 	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
 		priority: DefaultInputPriority,
 		applyFunction: func(state *TestState[C, M, D]) {
-			writeGinCookies(state, cookies, methodAndUrl...)
+			writeGinCookies(state, cookies)
 		},
 	})
 	return testOptions
@@ -264,7 +283,7 @@ func (to *TestOptions[C, M, D]) Gin_AddCookie(
 	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
 		priority: DefaultInputPriority,
 		applyFunction: func(state *TestState[C, M, D]) {
-			writeGinCookies(state, []*http.Cookie{cookieFunction(state)}, methodAndUrl...)
+			writeGinCookies(state, []*http.Cookie{cookieFunction(state)})
 		},
 	})
 	return testOptions
@@ -281,7 +300,7 @@ func (to *TestOptions[C, M, D]) Gin_AddCookies(
 	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
 		priority: DefaultInputPriority,
 		applyFunction: func(state *TestState[C, M, D]) {
-			writeGinCookies(state, cookiesFunction(state), methodAndUrl...)
+			writeGinCookies(state, cookiesFunction(state))
 		},
 	})
 	return testOptions
@@ -419,41 +438,21 @@ func convertToGinDataInterface(data interface{}) GinDataInterface {
 func writeGinBody[C, M, D any](
 	state *TestState[C, M, D],
 	value interface{},
-	methodAndUrl ...string,
 ) {
-	var err error
 	ctx := convertToGinDataInterface(state.Data).GetCtx()
 	body := io.NopCloser(bytes.NewReader(getJsonBytes(value)))
-
 	ctx.Request.Body = body
-	if len(methodAndUrl) == 2 {
-		ctx.Request.Method = methodAndUrl[0]
-		ctx.Request.URL, err = url.Parse(methodAndUrl[1])
-		if err != nil {
-			panic(err)
-		}
-	}
 }
 
 // Gin header write function
 func writeGinHeaders[C, M, D any](
 	state *TestState[C, M, D],
 	headers map[string]string,
-	methodAndUrl ...string,
 ) {
-	var err error
 	ctx := convertToGinDataInterface(state.Data).GetCtx()
 
 	for key, value := range headers {
 		ctx.Request.Header.Set(key, value)
-	}
-
-	if len(methodAndUrl) == 2 {
-		ctx.Request.Method = methodAndUrl[0]
-		ctx.Request.URL, err = url.Parse(methodAndUrl[1])
-		if err != nil {
-			panic(err)
-		}
 	}
 }
 
@@ -461,21 +460,11 @@ func writeGinHeaders[C, M, D any](
 func writeGinCookies[C, M, D any](
 	state *TestState[C, M, D],
 	cookies []*http.Cookie,
-	methodAndUrl ...string,
 ) {
-	var err error
 	ctx := convertToGinDataInterface(state.Data).GetCtx()
 
 	for _, cookie := range cookies {
 		ctx.Request.AddCookie(cookie)
-	}
-
-	if len(methodAndUrl) == 2 {
-		ctx.Request.Method = methodAndUrl[0]
-		ctx.Request.URL, err = url.Parse(methodAndUrl[1])
-		if err != nil {
-			panic(err)
-		}
 	}
 }
 

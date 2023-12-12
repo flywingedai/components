@@ -268,7 +268,7 @@ func (to *TestOptions[C, M, D]) Gin_ValidateCode(
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
 		recorder := convertToGinDataInterface(state.Data).GetRecorder()
-		state.Assertions.Equal(recorder.Code, code)
+		state.Assertions.Equal(code, recorder.Code)
 	})
 }
 
@@ -288,7 +288,7 @@ func (to *TestOptions[C, M, D]) Gin_ValidateBody(
 		}
 
 		// Assert equality
-		state.Assertions.Equal(string(responseBytes), string(getJsonBytes(expectedBody)))
+		state.Assertions.Equal(string(getJsonBytes(expectedBody)), string(responseBytes))
 
 	})
 }

@@ -61,9 +61,6 @@ type StructOptions struct {
 
 	// The config to use for the mockery generation
 	Config string
-
-	// Can be used to be filtered on by the parser.
-	Tag string
 }
 
 // Only call when parsing
@@ -73,6 +70,9 @@ func (p *Parser) CreateBaseStructData(name string) *StructData {
 		PackageName:   p.PackageName,
 		PackageFolder: p.PackageFolder,
 		StructFile:    p.File,
+
+		Methods: []MethodData{},
+		Options: StructOptions{},
 	}
 
 	if _, ok := p.Structs[structData.ID()]; !ok {
@@ -149,8 +149,6 @@ func (p *Parser) PopulateStructData(structData *StructData, node *ast.StructType
 			structData.Options.InterfaceFile = value
 		case "config":
 			structData.Options.Config = value
-		case "tag":
-			structData.Options.Tag = value
 		case "mockFolder":
 			structData.Options.MockFolder = value
 		case "mockFile":

@@ -135,6 +135,11 @@ func (p *Parser) Parse() {
 			structData.Options.MockFile = helpers.ToCamel(structData.Options.InterfaceName) + ".go"
 		}
 
+		// The struct must not be exported if the interface name is also the same
+		if structData.Options.InterfaceName == structData.Name {
+			panic("struct " + structData.Name + " in " + structData.StructFile + " has the same interface name!")
+		}
+
 	}
 }
 

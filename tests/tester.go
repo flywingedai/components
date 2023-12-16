@@ -13,7 +13,7 @@ Type C is the component type
 Type M is the mocks type
 Type D is the data type
 */
-type Tester[P, C, M, D any] struct {
+type Tester[C, M, D any] struct {
 
 	/*
 		Internal testing state. Contains all the different tests and the options
@@ -23,9 +23,8 @@ type Tester[P, C, M, D any] struct {
 	tests       []*TestConfig[C, M, D]
 
 	// Params passed in during Tester creation
-	newComponentFunction func(P) C
-	buildMocksFunction   func(*testing.T) (P, *M)
-	initDataFunction     func() *D
+	buildMocksFunction func(*testing.T) (C, *M)
+	initDataFunction   func() *D
 
 	// Global options for this tester
 	Options *TestOptions[C, M, D]
@@ -36,16 +35,14 @@ Create a new Tester with a specified Component, Mocks, and Data structure. Use
 tests.NullDataInitialization as the initDataFunction if you do not need
 to use the provided data object to facilitate your tester.
 */
-func NewTester[P, C, M, D any](
-	newComponentFunction func(P) C,
-	buildMocksFunction func(*testing.T) (P, *M),
+func NewTester[C, M, D any](
+	buildMocksFunction func(*testing.T) (C, *M),
 	initDataFunction func() *D,
-) *Tester[P, C, M, D] {
-	tester := &Tester[P, C, M, D]{
-		newComponentFunction: newComponentFunction,
-		buildMocksFunction:   buildMocksFunction,
-		initDataFunction:     initDataFunction,
-		Options:              &TestOptions[C, M, D]{},
+) *Tester[C, M, D] {
+	tester := &Tester[C, M, D]{
+		buildMocksFunction: buildMocksFunction,
+		initDataFunction:   initDataFunction,
+		Options:            &TestOptions[C, M, D]{},
 	}
 
 	return tester
@@ -61,12 +58,11 @@ interfaces. You should ignore those fields in the Options.
 */
 func NewFunctionTester[D any](
 	initDataFunction func() *D,
-) *Tester[interface{}, interface{}, interface{}, D] {
-	tester := &Tester[interface{}, interface{}, interface{}, D]{
-		newComponentFunction: func(_ interface{}) interface{} { return nil },
-		buildMocksFunction:   func(t *testing.T) (interface{}, *interface{}) { return nil, nil },
-		initDataFunction:     initDataFunction,
-		Options:              &TestOptions[interface{}, interface{}, D]{},
+) *Tester[interface{}, interface{}, D] {
+	tester := &Tester[interface{}, interface{}, D]{
+		buildMocksFunction: func(t *testing.T) (interface{}, *interface{}) { return nil, nil },
+		initDataFunction:   initDataFunction,
+		Options:            &TestOptions[interface{}, interface{}, D]{},
 	}
 
 	return tester
@@ -78,16 +74,15 @@ No initialization step is called for this kind of tester. The inferred
 type for the data is interface{}, but it will always be set to nil for
 tests created this way.
 */
-func NewTesterWithoutData[P, C, M any](
-	newComponentFunction func(P) C,
-	buildMocksFunction func(*testing.T) (P, *M),
-) *Tester[P, C, M, interface{}] {
-	tester := &Tester[P, C, M, interface{}]{
-		newComponentFunction: newComponentFunction,
-		buildMocksFunction:   buildMocksFunction,
+func NewTesterWithoutData[C, M any](
+	buildMocksFunction func(*testing.T) (C, *M),
+) *Tester[C, M, interface{}] {
+	tester := &Tester[C, M, interface{}]{
+		buildMocksFunction: buildMocksFunction,
 		initDataFunction: func() *interface{} {
 			return nil
 		},
+		Options: &TestOptions[C, M, interface{}]{},
 	}
 
 	return tester
@@ -96,9 +91,9 @@ func NewTesterWithoutData[P, C, M any](
 /*
 Add tests that run a method of the parent component
 */
-func (tester *Tester[P, C, M, D]) AddTests(
+func (tester *Tester[C, M, D]) AddTests(
 	tests ...*TestConfig[C, M, D],
-) *Tester[P, C, M, D] {
+) *Tester[C, M, D] {
 	tester.tests = append(tester.tests, tests...)
 	return tester
 }
@@ -107,17 +102,17 @@ func (tester *Tester[P, C, M, D]) AddTests(
 Attach a group id to the tester so that all tests under this tester
 automatically have a prefix attached to them.
 */
-func (tester *Tester[P, C, M, D]) WithGroupID(
+func (tester *Tester[C, M, D]) WithGroupID(
 	groupID string,
-) *Tester[P, C, M, D] {
+) *Tester[C, M, D] {
 	tester.testGroupID = groupID
 	return tester
 }
 
 /*
-Runs all the currently generated tests.
+Runs all the currently appended tests in the order in which they were appended.
 */
-func (tester *Tester[P, C, M, D]) Test(t *testing.T) {
+func (tester *Tester[C, M, D]) Test(t *testing.T) {
 	for _, loopTest := range tester.tests {
 		test := loopTest
 
@@ -155,11 +150,12 @@ func (tester *Tester[P, C, M, D]) Test(t *testing.T) {
 }
 
 /*
-Creates a component and a mocks object to user for the testing
+Creates a component and a mocks object for testing. Is automatically called at
+the beginning of each test so that a fresh set of components, mocks, and data
+is available.
 */
-func (tester *Tester[P, C, M, D]) build(t *testing.T) (C, *M, *D) {
-	params, mocks := tester.buildMocksFunction(t)
-	component := tester.newComponentFunction(params)
+func (tester *Tester[C, M, D]) build(t *testing.T) (C, *M, *D) {
+	component, mocks := tester.buildMocksFunction(t)
 	data := tester.initDataFunction()
 	return component, mocks, data
 }

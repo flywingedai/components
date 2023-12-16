@@ -88,15 +88,13 @@ data object to get this automatically. Preparation step will automatically
 occur at priority -100.
 */
 func NewGinTester[P, C, M, D any](
-	newComponentFunction func(P) C,
-	buildMocksFunction func(*testing.T) (P, *M),
+	buildMocksFunction func(*testing.T) (C, *M),
 	initDataFunction func() *D,
-) *Tester[P, C, M, D] {
-	tester := &Tester[P, C, M, D]{
-		newComponentFunction: newComponentFunction,
-		buildMocksFunction:   buildMocksFunction,
-		initDataFunction:     initDataFunction,
-		Options:              &TestOptions[C, M, D]{},
+) *Tester[C, M, D] {
+	tester := &Tester[C, M, D]{
+		buildMocksFunction: buildMocksFunction,
+		initDataFunction:   initDataFunction,
+		Options:            &TestOptions[C, M, D]{},
 	}
 
 	tester.Options = tester.Options.NewOption(-100, func(state *TestState[C, M, D]) {

@@ -89,6 +89,14 @@ func NewTesterWithoutData[C, M any](
 }
 
 /*
+Create a new options for this tester without any of the existing options
+included. Makes it slightly easier to branch
+*/
+func (tester *Tester[C, M, D]) NewOptions() *TestOptions[C, M, D] {
+	return &TestOptions[C, M, D]{}
+}
+
+/*
 Add tests that run a method of the parent component
 */
 func (tester *Tester[C, M, D]) AddTests(

@@ -28,6 +28,10 @@ func NewRootCmd() *cobra.Command {
 
 		// Create the parser according to the directory specified
 		p := componentparser.New(cmd)
+
+		if len(args) != 1 {
+			panic("Invalid usage - " + cmd.Example)
+		}
 		p.Args.Directory = args[0]
 
 		// Parse all files in the path specified

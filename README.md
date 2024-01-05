@@ -6,10 +6,15 @@ Golang code testing and genreation package.
 ## Generation
 
 ### Installation
+
+For generation tool:
+```sh
+go install github.com/flywingedai/components@latest
+```
+
+For use of the tests package
 ```sh
 go get github.com/flywingedai/components/tests
-go get github.com/flywingedai/components/generate
-go install github.com/flywingedai/components
 ```
 
 ### Struct Registration

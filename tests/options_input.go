@@ -92,7 +92,10 @@ func (to *TestOptions[C, M, D]) SetInputs(
 
 // Little helper for managing inputs
 func expandInput(input []interface{}, size int) []interface{} {
-	newInput := make([]interface{}, size+1)
-	copy(newInput, input)
-	return newInput
+	if len(input) < size {
+		newInput := make([]interface{}, size+1)
+		copy(newInput, input)
+		return newInput
+	}
+	return input
 }

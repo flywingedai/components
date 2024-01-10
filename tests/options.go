@@ -114,7 +114,11 @@ tests on each other.
 func (to *TestOptions[C, M, D]) Tag(
 	tag string,
 ) *TestOptions[C, M, D] {
-	to.options[len(to.options)-1].tag = tag
+	if len(to.options) > 0 {
+		to.options[len(to.options)-1].tag = tag
+	} else {
+		panic("called TestOptions.Tag() with no options.")
+	}
 	return to
 }
 

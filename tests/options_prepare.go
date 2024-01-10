@@ -9,7 +9,7 @@ Default Priority = -3
 func (to *TestOptions[C, M, D]) Prepare(
 	f func(),
 ) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultPreparePriority, func(state *TestState[C, M, D]) {
+	return to.copyAndAppend(DefaultPreparePriority, func(_ *TestState[C, M, D]) {
 		f()
 	})
 }

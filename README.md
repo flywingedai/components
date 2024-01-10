@@ -32,7 +32,7 @@ type component struct {
         expecters::$$STRING_VALUE
         config::$STRING_VALUE
     */
-    subComponent interfaces.SubComponent `pkg:"$mockPackage" new:"$newMock" type:"mockType"`
+    subComponent interfaces.SubComponent `pkg:"$mockPackage" new:"$newMock" type:"$mockType"`
 }
 ```
 

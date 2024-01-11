@@ -17,9 +17,6 @@ type testOption[C, M, D any] struct {
 	*/
 	priority int
 
-	// Used to facilitate option checkouts for easier iterative test creation.
-	tag string
-
 	/*
 		The applyFunction is what gets called by the TestOption interface to
 		make sure the test ran nominally
@@ -41,11 +38,13 @@ allow easy bifrucation of test setup.
 */
 type TestOptions[C, M, D any] struct {
 	options []*testOption[C, M, D]
+	tester  *Tester[C, M, D]
 }
 
-func NewOptions[C, M, D any]() *TestOptions[C, M, D] {
+func NewOptions[C, M, D any](tester *Tester[C, M, D]) *TestOptions[C, M, D] {
 	return &TestOptions[C, M, D]{
 		options: []*testOption[C, M, D]{},
+		tester:  tester,
 	}
 }
 
@@ -55,6 +54,7 @@ func (to *TestOptions[C, M, D]) Copy() *TestOptions[C, M, D] {
 	testOptions = append(testOptions, to.options...)
 	return &TestOptions[C, M, D]{
 		options: testOptions,
+		tester:  to.tester,
 	}
 }
 
@@ -114,11 +114,7 @@ tests on each other.
 func (to *TestOptions[C, M, D]) Tag(
 	tag string,
 ) *TestOptions[C, M, D] {
-	if len(to.options) > 0 {
-		to.options[len(to.options)-1].tag = tag
-	} else {
-		panic("called TestOptions.Tag() with no options.")
-	}
+	to.tester.branches[tag] = to
 	return to
 }
 
@@ -130,14 +126,11 @@ not found, this will panic.
 func (to *TestOptions[C, M, D]) Checkout(
 	tag string,
 ) *TestOptions[C, M, D] {
-	for i := len(to.options) - 1; i >= 0; i-- {
-		if to.options[i].tag == tag {
-			return &TestOptions[C, M, D]{
-				options: to.options[:i+1],
-			}
-		}
+	options, exists := to.tester.branches[tag]
+	if !exists {
+		panic("could not find tag " + tag + " in tester")
 	}
-	panic("could not find tag " + tag + " in TestOptions")
+	return options
 }
 
 func (to *TestOptions[C, M, D]) copyAndAppend(

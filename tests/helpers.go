@@ -9,10 +9,10 @@ type deref struct {
 }
 
 // Dereference a value at runtime. Often used for pointer values
-func DeRef[T any](field *T) deref {
+func DeRef(field interface{}) deref {
 	return deref{
 		dereference: func() interface{} {
-			return *field
+			return removeInterfacePointer(field)
 		},
 	}
 }

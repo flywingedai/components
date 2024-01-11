@@ -35,6 +35,13 @@ func (_c {{InterfaceName}}_{{Method}}Chain[M{{GenericShortAppend}}]) Return({{Re
 	}
 }
 
+func (_c {{InterfaceName}}_{{Method}}Chain[M{{GenericShortAppend}}]) Once() {{InterfaceName}}_{{Method}}Chain[M{{GenericShortAppend}}] {
+	return func(m *M) *{{InterfaceName}}_{{Method}}_Call{{GenericShort}} {
+		call := _c(m)
+		return &{{InterfaceName}}_{{Method}}_Call{call.Once()}
+	}
+}
+
 func (_c {{InterfaceName}}_{{Method}}Chain[M{{GenericShortAppend}}]) RunAndReturn(run func({{Args}}){{ReturnsTypes}}) {{InterfaceName}}_{{Method}}Chain[M{{GenericShortAppend}}] {
 	return func(m *M) *{{InterfaceName}}_{{Method}}_Call{{GenericShort}} {
 		call := _c(m)

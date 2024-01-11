@@ -53,7 +53,11 @@ func (to *TestOptions[C, M, D]) SetInputsByValue(
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
 		state.Input = make([]interface{}, len(values))
-		copy(state.Input, values)
+		for i, value := range values {
+			if value != SKIP {
+				state.Input[i] = value
+			}
+		}
 	})
 }
 
@@ -66,8 +70,10 @@ func (to *TestOptions[C, M, D]) SetInputsByValue_Pointer(
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
 		state.Input = make([]interface{}, len(values))
-		for i, v := range values {
-			state.Input[i] = removeInterfacePointer(v)
+		for i, value := range values {
+			if value != SKIP {
+				state.Input[i] = removeInterfacePointer(value)
+			}
 		}
 	})
 }
@@ -82,7 +88,11 @@ func (to *TestOptions[C, M, D]) SetInputs(
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
 		values := f(state)
 		state.Input = make([]interface{}, len(values))
-		copy(state.Input, values)
+		for i, value := range values {
+			if value != SKIP {
+				state.Input[i] = value
+			}
+		}
 	})
 }
 
@@ -92,10 +102,13 @@ func (to *TestOptions[C, M, D]) SetInputs(
 
 // Little helper for managing inputs
 func expandInput(input []interface{}, size int) []interface{} {
-	if len(input) < size+1 {
-		newInput := make([]interface{}, size+1)
-		copy(newInput, input)
-		return newInput
+	newInput := make([]interface{}, size)
+	for i := 0; i < size; i++ {
+		if i < len(input) {
+			newInput[i] = input[i]
+		} else {
+			newInput[i] = SKIP
+		}
 	}
-	return input
+	return newInput
 }

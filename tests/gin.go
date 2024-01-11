@@ -138,6 +138,42 @@ func (to *TestOptions[C, M, D]) Gin_SetCtx(
 	})
 }
 
+/*
+Sets a specific value in params
+*/
+func (to *TestOptions[C, M, D]) Gin_SetParam(
+	key string, value string,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		ctx := convertToGinDataInterface(state.Data).GetCtx()
+		ctx.AddParam(key, value)
+	})
+}
+
+/*
+Sets a specific value in params
+*/
+func (to *TestOptions[C, M, D]) Gin_SetParam_P(
+	key string, value *string,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		ctx := convertToGinDataInterface(state.Data).GetCtx()
+		ctx.AddParam(key, *value)
+	})
+}
+
+/*
+Sets a gin param value
+*/
+func (to *TestOptions[C, M, D]) Gin_SetParam_F(
+	key string, valueFunction func(state *TestState[C, M, D]) string,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		ctx := convertToGinDataInterface(state.Data).GetCtx()
+		ctx.AddParam(key, valueFunction(state))
+	})
+}
+
 func (to *TestOptions[C, M, D]) Gin_SetMethodAndURL(
 	method, url string,
 ) *TestOptions[C, M, D] {

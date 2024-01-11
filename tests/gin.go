@@ -95,6 +95,7 @@ func NewGinTester[C, M, D any](
 		buildMocksFunction: buildMocksFunction,
 		initDataFunction:   initDataFunction,
 		Options:            &TestOptions[C, M, D]{},
+		branches:           map[string]*TestOptions[C, M, D]{},
 	}
 	tester.Options.tester = tester
 

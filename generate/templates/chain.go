@@ -42,14 +42,14 @@ func (_c {{InterfaceName}}_{{Method}}Chain[M{{GenericShortAppend}}]) RunAndRetur
 	}
 }
 
-func (_c {{InterfaceName}}_ExpecterChain[M{{GenericShortAppend}}]) {{Method}}_Pointer({{ArgsInterface}}) {{InterfaceName}}_{{Method}}Chain[M{{GenericShortAppend}}] {
+func (_c {{InterfaceName}}_ExpecterChain[M{{GenericShortAppend}}]) {{Method}}_P({{ArgsInterface}}) {{InterfaceName}}_{{Method}}Chain[M{{GenericShortAppend}}] {
 	return func(m *M) *{{InterfaceName}}_{{Method}}_Call{{GenericShort}} {
 		expecter := _c(m)
 		return expecter.{{Method}}({{ArgsShortPointer}})
 	}
 }
 
-func (_c {{InterfaceName}}_{{Method}}Chain[M{{GenericShortAppend}}]) Return_Pointer({{ReturnsArgsPointer}}) {{InterfaceName}}_{{Method}}Chain[M{{GenericShortAppend}}] {
+func (_c {{InterfaceName}}_{{Method}}Chain[M{{GenericShortAppend}}]) Return_P({{ReturnsArgsPointer}}) {{InterfaceName}}_{{Method}}Chain[M{{GenericShortAppend}}] {
 	return func(m *M) *{{InterfaceName}}_{{Method}}_Call{{GenericShort}} {
 		call := _c(m)
 		return call.Return({{ReturnsShortPointer}})

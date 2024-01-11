@@ -104,7 +104,7 @@ func NewGinTester[C, M, D any](
 		ginData.PrepareForTest()
 	})
 
-	tester.Options = tester.Options.SetInput(0, func(state *TestState[C, M, D]) interface{} {
+	tester.Options = tester.Options.SetInput_F(0, func(state *TestState[C, M, D]) interface{} {
 		ginData := convertToGinDataInterface(state.Data)
 		return ginData.GetCtx()
 	})

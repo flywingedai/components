@@ -102,8 +102,13 @@ func (to *TestOptions[C, M, D]) SetInputs_F(
 
 // Little helper for managing inputs
 func expandInput(input []interface{}, size int) []interface{} {
-	newInput := make([]interface{}, size+1)
-	for i := 0; i < size; i++ {
+	newInputSize := size + 1
+	if len(input) > newInputSize {
+		newInputSize = len(input)
+	}
+
+	newInput := make([]interface{}, newInputSize)
+	for i := 0; i < newInputSize; i++ {
 		if i < len(input) {
 			newInput[i] = input[i]
 		} else {

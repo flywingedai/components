@@ -7,6 +7,12 @@ import (
 
 var DefaultOutputPriority = 1
 
+// Causes an output to be ignore
+const IGNORE = mock.Anything
+
+// Causes an input or output to be ignored when being set
+const SKIP = "__tests.skipInput__"
+
 func (to *TestOptions[C, M, D]) Validate(
 	f func(state *TestState[C, M, D]) error,
 ) *TestOptions[C, M, D] {
@@ -65,7 +71,9 @@ func (to *TestOptions[C, M, D]) ValidateOutputValues(
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
 		for index, value := range state.Output {
-			assertInterfaceEqual(state.Assertions, expectedValues[index], value)
+			if value != SKIP {
+				assertInterfaceEqual(state.Assertions, expectedValues[index], value)
+			}
 		}
 	})
 }
@@ -79,7 +87,9 @@ func (to *TestOptions[C, M, D]) ValidateOutputValues_Pointer(
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
 		for index, value := range state.Output {
-			assertInterfaceEqual(state.Assertions, removeInterfacePointer(expectedValues[index]), value)
+			if value != SKIP {
+				assertInterfaceEqual(state.Assertions, removeInterfacePointer(expectedValues[index]), value)
+			}
 		}
 	})
 }
@@ -94,7 +104,9 @@ func (to *TestOptions[C, M, D]) ValidateOutputs(
 	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
 		expectedValues := f(state)
 		for index, value := range state.Output {
-			assertInterfaceEqual(state.Assertions, expectedValues[index], value)
+			if value != SKIP {
+				assertInterfaceEqual(state.Assertions, expectedValues[index], value)
+			}
 		}
 	})
 }

@@ -26,6 +26,9 @@ type Tester[C, M, D any] struct {
 	buildMocksFunction func(*testing.T) (C, *M)
 	initDataFunction   func() *D
 
+	// List of branches associated with this tester
+	branches map[string]*TestOptions[C, M, D]
+
 	// Global options for this tester
 	Options *TestOptions[C, M, D]
 
@@ -46,7 +49,9 @@ func NewTester[C, M, D any](
 		buildMocksFunction: buildMocksFunction,
 		initDataFunction:   initDataFunction,
 		Options:            &TestOptions[C, M, D]{},
+		branches:           map[string]*TestOptions[C, M, D]{},
 	}
+	tester.Options.tester = tester
 
 	return tester
 }
@@ -65,8 +70,10 @@ func NewTesterWithInit[C, M any](
 			initDataFunction()
 			return nil
 		},
-		Options: &TestOptions[C, M, interface{}]{},
+		Options:  &TestOptions[C, M, interface{}]{},
+		branches: map[string]*TestOptions[C, M, interface{}]{},
 	}
+	tester.Options.tester = tester
 
 	return tester
 }
@@ -86,7 +93,9 @@ func NewFunctionTester[D any](
 		buildMocksFunction: func(t *testing.T) (interface{}, *interface{}) { return nil, nil },
 		initDataFunction:   initDataFunction,
 		Options:            &TestOptions[interface{}, interface{}, D]{},
+		branches:           map[string]*TestOptions[interface{}, interface{}, D]{},
 	}
+	tester.Options.tester = tester
 
 	return tester
 }
@@ -105,8 +114,10 @@ func NewTesterWithoutData[C, M any](
 		initDataFunction: func() *interface{} {
 			return nil
 		},
-		Options: &TestOptions[C, M, interface{}]{},
+		Options:  &TestOptions[C, M, interface{}]{},
+		branches: map[string]*TestOptions[C, M, interface{}]{},
 	}
+	tester.Options.tester = tester
 
 	return tester
 }
@@ -116,7 +127,22 @@ Create a new options for this tester without any of the existing options
 included. Makes it slightly easier to branch
 */
 func (tester *Tester[C, M, D]) NewOptions() *TestOptions[C, M, D] {
-	return &TestOptions[C, M, D]{}
+	return NewOptions[C, M, D](tester)
+}
+
+/*
+Checkout the most recent entry of the tag in the options. Return
+all options prior to that tag, including that tag. If the tag is
+not found, this will panic.
+*/
+func (tester *Tester[C, M, D]) Checkout(
+	tag string,
+) *TestOptions[C, M, D] {
+	options, exists := tester.branches[tag]
+	if !exists {
+		panic("could not find tag " + tag + " in tester")
+	}
+	return options
 }
 
 /*

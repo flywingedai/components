@@ -6,13 +6,13 @@ var DefaultInputPriority = -1
 Directly specify a value of a particular arg.
 Default Priority = -1
 */
-func (to *TestOptions[C, M, D]) SetInputByValue(
+func (to *TestOptions[C, M, D]) SetInput(
 	argIndex int,
 	value interface{},
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
 		state.Input = expandInput(state.Input, argIndex)
-		(state.Input)[argIndex] = value
+		(state.Input)[argIndex] = handleDereference(value)
 	})
 }
 
@@ -20,7 +20,7 @@ func (to *TestOptions[C, M, D]) SetInputByValue(
 Directly specify a value of a particular arg.
 Default Priority = -1
 */
-func (to *TestOptions[C, M, D]) SetInputByValue_Pointer(
+func (to *TestOptions[C, M, D]) SetInput_P(
 	argIndex int,
 	value interface{},
 ) *TestOptions[C, M, D] {
@@ -34,7 +34,7 @@ func (to *TestOptions[C, M, D]) SetInputByValue_Pointer(
 Specify a value of a particular arg based on the component and/or the test data.
 Default Priority = -1
 */
-func (to *TestOptions[C, M, D]) SetInput(
+func (to *TestOptions[C, M, D]) SetInput_F(
 	argIndex int,
 	f func(state *TestState[C, M, D]) interface{},
 ) *TestOptions[C, M, D] {
@@ -48,7 +48,7 @@ func (to *TestOptions[C, M, D]) SetInput(
 Directly specify a value of all args at once.
 Default Priority = -1
 */
-func (to *TestOptions[C, M, D]) SetInputsByValue(
+func (to *TestOptions[C, M, D]) SetInputs(
 	values ...interface{},
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
@@ -65,7 +65,7 @@ func (to *TestOptions[C, M, D]) SetInputsByValue(
 Directly specify a value of all args at once.
 Default Priority = -1
 */
-func (to *TestOptions[C, M, D]) SetInputsByValue_Pointer(
+func (to *TestOptions[C, M, D]) SetInputs_P(
 	values ...interface{},
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
@@ -82,7 +82,7 @@ func (to *TestOptions[C, M, D]) SetInputsByValue_Pointer(
 Specify a value of all args at once based on the component and/or the test data.
 Default Priority = -1
 */
-func (to *TestOptions[C, M, D]) SetInputs(
+func (to *TestOptions[C, M, D]) SetInputs_F(
 	f func(state *TestState[C, M, D]) []interface{},
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {

@@ -13,6 +13,10 @@ const IGNORE = mock.Anything
 // Causes an input or output to be ignored when being set
 const SKIP = "__tests.skipInput__"
 
+/*
+If the function returns an error, test will fail.
+Default Priority = 1
+*/
 func (to *TestOptions[C, M, D]) Validate(
 	f func(state *TestState[C, M, D]) error,
 ) *TestOptions[C, M, D] {
@@ -26,7 +30,7 @@ func (to *TestOptions[C, M, D]) Validate(
 Directly check a value of a particular output.
 Default Priority = 1
 */
-func (to *TestOptions[C, M, D]) ValidateOutputValue(
+func (to *TestOptions[C, M, D]) Output(
 	argIndex int,
 	expectedValue interface{},
 ) *TestOptions[C, M, D] {
@@ -39,7 +43,7 @@ func (to *TestOptions[C, M, D]) ValidateOutputValue(
 Directly check a value of a particular output.
 Default Priority = 1
 */
-func (to *TestOptions[C, M, D]) ValidateOutputValue_Pointer(
+func (to *TestOptions[C, M, D]) Output_P(
 	argIndex int,
 	expectedValue *interface{},
 ) *TestOptions[C, M, D] {
@@ -52,7 +56,7 @@ func (to *TestOptions[C, M, D]) ValidateOutputValue_Pointer(
 Specify a value of a particular arg based on the component and/or the test data.
 Default Priority = 1
 */
-func (to *TestOptions[C, M, D]) ValidateOutput(
+func (to *TestOptions[C, M, D]) Output_F(
 	argIndex int,
 	f func(state *TestState[C, M, D]) interface{},
 ) *TestOptions[C, M, D] {
@@ -66,7 +70,7 @@ func (to *TestOptions[C, M, D]) ValidateOutput(
 Directly check all values of all outputs at once.
 Default Priority = 1
 */
-func (to *TestOptions[C, M, D]) ValidateOutputValues(
+func (to *TestOptions[C, M, D]) Outputs(
 	expectedValues ...interface{},
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
@@ -82,7 +86,7 @@ func (to *TestOptions[C, M, D]) ValidateOutputValues(
 Directly check all values of all outputs at once.
 Default Priority = 1
 */
-func (to *TestOptions[C, M, D]) ValidateOutputValues_Pointer(
+func (to *TestOptions[C, M, D]) Outputs_P(
 	expectedValues ...interface{},
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
@@ -98,7 +102,7 @@ func (to *TestOptions[C, M, D]) ValidateOutputValues_Pointer(
 Specify a value of all args at once based on the component and/or the test data.
 Default Priority = 1
 */
-func (to *TestOptions[C, M, D]) ValidateOutputs(
+func (to *TestOptions[C, M, D]) Outputs_F(
 	f func(state *TestState[C, M, D]) []interface{},
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {

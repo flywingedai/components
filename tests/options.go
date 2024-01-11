@@ -140,17 +140,9 @@ func (to *TestOptions[C, M, D]) Checkout(
 	panic("could not find tag " + tag + " in TestOptions")
 }
 
-func (to *TestOptions[C, M, D]) copyAndAppend(
-	priority int,
-	applyFunction func(state *TestState[C, M, D]),
-) *TestOptions[C, M, D] {
-	testOptions := to.Copy()
-	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
-		priority:      priority,
-		applyFunction: applyFunction,
-	})
-	return testOptions
-}
+//////////////////
+// TEST CONFIGS //
+//////////////////
 
 /*
 Create a new test based on the given function. By doing things this way, private
@@ -195,4 +187,21 @@ func (to *TestOptions[C, M, D]) CreateFunctionTest(function interface{}, testNam
 		},
 		Options: to,
 	}
+}
+
+/////////////
+// HELPERS //
+/////////////
+
+// Internal function that is used for generic test option additions
+func (to *TestOptions[C, M, D]) copyAndAppend(
+	priority int,
+	applyFunction func(state *TestState[C, M, D]),
+) *TestOptions[C, M, D] {
+	testOptions := to.Copy()
+	testOptions.options = append(testOptions.options, &testOption[C, M, D]{
+		priority:      priority,
+		applyFunction: applyFunction,
+	})
+	return testOptions
 }

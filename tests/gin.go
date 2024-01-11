@@ -96,6 +96,7 @@ func NewGinTester[C, M, D any](
 		initDataFunction:   initDataFunction,
 		Options:            &TestOptions[C, M, D]{},
 	}
+	tester.Options.tester = tester
 
 	tester.Options = tester.Options.NewOption(-100, func(state *TestState[C, M, D]) {
 		ginData := convertToGinDataInterface(state.Data)

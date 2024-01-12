@@ -140,6 +140,62 @@ func (to *TestOptions[C, M, D]) Gin_SetCtx_F(
 	})
 }
 
+func (to *TestOptions[C, M, D]) Gin_SetMethodAndURL(
+	method, url string,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultPreparePriority, func(state *TestState[C, M, D]) {
+		var err error
+		ctx := convertToGinDataInterface(state.Data).GetCtx()
+		ctx.Request.Method = method
+		ctx.Request.URL, err = urlpkg.Parse(url)
+		if err != nil {
+			panic(err)
+		}
+	})
+}
+
+/*
+Sets a specific value in the query string
+*/
+func (to *TestOptions[C, M, D]) Gin_SetQuery(
+	key string, value string,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		ctx := convertToGinDataInterface(state.Data).GetCtx()
+		u := ctx.Request.URL.Query()
+		u.Add(key, value)
+		ctx.Request.URL.RawQuery = u.Encode()
+	})
+}
+
+/*
+Sets a specific value in the query string
+*/
+func (to *TestOptions[C, M, D]) Gin_SetQuery_P(
+	key string, value *string,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		ctx := convertToGinDataInterface(state.Data).GetCtx()
+		u := ctx.Request.URL.Query()
+		u.Add(key, *value)
+		ctx.Request.URL.RawQuery = u.Encode()
+	})
+}
+
+/*
+Sets a gin param value in the query string
+*/
+func (to *TestOptions[C, M, D]) Gin_SetQuery_F(
+	key string, valueFunction func(state *TestState[C, M, D]) string,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		ctx := convertToGinDataInterface(state.Data).GetCtx()
+		u := ctx.Request.URL.Query()
+		u.Add(key, valueFunction(state))
+		ctx.Request.URL.RawQuery = u.Encode()
+	})
+}
+
 /*
 Sets a specific value in params
 */
@@ -165,7 +221,7 @@ func (to *TestOptions[C, M, D]) Gin_SetParam_P(
 }
 
 /*
-Sets a gin param value
+Sets a gin param value in params
 */
 func (to *TestOptions[C, M, D]) Gin_SetParam_F(
 	key string, valueFunction func(state *TestState[C, M, D]) string,
@@ -173,20 +229,6 @@ func (to *TestOptions[C, M, D]) Gin_SetParam_F(
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
 		ctx := convertToGinDataInterface(state.Data).GetCtx()
 		ctx.AddParam(key, valueFunction(state))
-	})
-}
-
-func (to *TestOptions[C, M, D]) Gin_SetMethodAndURL(
-	method, url string,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
-		var err error
-		ctx := convertToGinDataInterface(state.Data).GetCtx()
-		ctx.Request.Method = method
-		ctx.Request.URL, err = urlpkg.Parse(url)
-		if err != nil {
-			panic(err)
-		}
 	})
 }
 

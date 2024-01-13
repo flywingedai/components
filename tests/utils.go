@@ -1,34 +1,20 @@
 package tests
 
 import (
-	"errors"
 	"reflect"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-// Helper to handle bad read errors
-type ErrorIO struct {
-	ReadErr  error
-	CloseErr error
-}
+////////////////
+// INTERFACES //
+////////////////
 
-func NewDefaultErrorIO() *ErrorIO {
-	return &ErrorIO{
-		ReadErr:  errors.New("ErrorIO: Read error"),
-		CloseErr: errors.New("ErrorIO: Close error"),
-	}
-}
-
-func (e *ErrorIO) Read(p []byte) (n int, err error) {
-	return 0, e.ReadErr
-}
-
-func (e *ErrorIO) Close() error {
-	return e.CloseErr
-}
-
+/*
+Internal method that removes an interface pointer that is known to be of the
+pointer type. Will fail if the pointerInterface is not actually a pointer.
+*/
 func removeInterfacePointer(pointerInterface interface{}) interface{} {
 
 	if pointerInterface == nil {
@@ -71,24 +57,6 @@ func RemoveInterfacePointer[T any](pointerInterface interface{}) interface{} {
 	return pointerInterface
 }
 
-// Function to convert an array from one type to another
-func mapArray[I, O any](input []I, convertFunction func(I) O) []O {
-	output := []O{}
-	for _, value := range input {
-		output = append(output, convertFunction(value))
-	}
-	return output
-}
-
-// Function to convert a map from one type to another
-func mapMap[K comparable, VI, VO any](input map[K]VI, convertFunction func(VI) VO) map[K]VO {
-	output := map[K]VO{}
-	for key, value := range input {
-		output[key] = convertFunction(value)
-	}
-	return output
-}
-
 // Little helper for ensuring to output values are equal.
 func assertInterfaceEqual(parallelAssert *assert.Assertions, expected, actual interface{}) {
 
@@ -107,4 +75,26 @@ func assertInterfaceEqual(parallelAssert *assert.Assertions, expected, actual in
 
 	parallelAssert.Fail("interfaces not equal", actual, expected)
 
+}
+
+/////////////////////////
+// MAP AND ARRAY UTILS //
+/////////////////////////
+
+// Function to convert an array from one type to another
+func mapArray[I, O any](input []I, convertFunction func(I) O) []O {
+	output := []O{}
+	for _, value := range input {
+		output = append(output, convertFunction(value))
+	}
+	return output
+}
+
+// Function to convert a map from one type to another
+func mapMap[K comparable, VI, VO any](input map[K]VI, convertFunction func(VI) VO) map[K]VO {
+	output := map[K]VO{}
+	for key, value := range input {
+		output[key] = convertFunction(value)
+	}
+	return output
 }

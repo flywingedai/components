@@ -1,9 +1,10 @@
 package tests
 
-/////////////////
-// DEREFERENCE //
-/////////////////
-
+/*
+Internal object that is produced by the tests.Deref() function. Used to
+indicate to the tests.handleDerefernece() function whether or not this value
+should be dereferenced or not.
+*/
 type deref struct {
 	dereference func() interface{}
 }
@@ -21,6 +22,11 @@ func DeRef(field interface{}) deref {
 	}
 }
 
+/*
+Internal function for managing dereferences of interface values. If the value
+is of type tests.deref, then it will be dereferenced, otherwise it will be
+returned as is.
+*/
 func handleDereference(value interface{}) interface{} {
 	derefStruct, ok := value.(deref)
 	if ok {

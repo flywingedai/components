@@ -8,7 +8,11 @@ type deref struct {
 	dereference func() interface{}
 }
 
-// Dereference a value at runtime. Often used for pointer values
+/*
+Deref should be used inside of functions that have "Supports DeRef()" written
+in their docstring somewhere. It allows you to pass in a pointer to something
+that you would like to be evaluated during the test, not before.
+*/
 func DeRef(field interface{}) deref {
 	return deref{
 		dereference: func() interface{} {

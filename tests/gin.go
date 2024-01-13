@@ -12,9 +12,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-///////////////
-// TEST DATA //
-///////////////
+//////////////
+// GIN DATA //
+//////////////
 
 type GinDataInterface interface {
 
@@ -81,30 +81,35 @@ var InitGinData = func() *GinData {
 ////////////
 
 /*
-Create a new Tester for methods requiring a gin test context. The Data
-structure must conform to the interface tests.GinDataInterface or else
-your test will panic. You may compose the tests.GinData into your
-data object to get this automatically. Preparation step will automatically
-occur at priority -100.
+Create a new Tester for methods requiring a gin test context. You may use
+tests.InitGinData as the initDataFunction for convenience. Otherwise, the custom
+data structure provided must conform to the interface tests.GinDataInterface or
+else your test will panic. You may compose the tests.GinData into your
+data object to get this automatically.
+
+This will automatically attach 2 options to the returned tester.Options:
+
+  - Test Prep at priority tests.DefaultSetupPriority: This casts the data to
+    GinDataInterface and calls GinDataInterface.PrepareForTest(). This sets up
+    the test recorder, context, and engine for the gin tester.
+
+  - Output Prep at priority 0 (just before the test runs): This casts the
+    input at arg index 0 to a gin context.
 */
 func NewGinTester[C, M, D any](
 	buildMocksFunction func(*testing.T) (C, *M),
 	initDataFunction func() *D,
 ) *Tester[C, M, D] {
-	tester := &Tester[C, M, D]{
-		buildMocksFunction: buildMocksFunction,
-		initDataFunction:   initDataFunction,
-		Options:            &TestOptions[C, M, D]{},
-		branches:           map[string]*TestOptions[C, M, D]{},
-	}
-	tester.Options.tester = tester
+	tester := emptyTester[C, M, D]()
+	tester.buildMocksFunction = buildMocksFunction
+	tester.initDataFunction = initDataFunction
 
-	tester.Options = tester.Options.NewOption(-100, func(state *TestState[C, M, D]) {
+	tester.Options = tester.Options.NewOption(DefaultSetupPriority, func(state *TestState[C, M, D]) {
 		ginData := convertToGinDataInterface(state.Data)
 		ginData.PrepareForTest()
 	})
 
-	tester.Options = tester.Options.SetInput_F(0, func(state *TestState[C, M, D]) interface{} {
+	tester.Options = tester.Options.SetInput_SC(0, func(state *TestState[C, M, D]) interface{} {
 		ginData := convertToGinDataInterface(state.Data)
 		return ginData.GetCtx()
 	})
@@ -112,14 +117,16 @@ func NewGinTester[C, M, D any](
 	return tester
 }
 
-///////////
-// INPUT //
-///////////
+////////////////////////
+// SET CONTEXT VALUES //
+////////////////////////
 
 /*
-Sets a specific value of the gin context prior to execution
+Sets a specific key-value pair in the gin context prior to execution.
+Has Priority = tests.DefaultInputPriority
+Supports DeRef()
 */
-func (to *TestOptions[C, M, D]) Gin_SetCtx(
+func (to *TestOptions[C, M, D]) Gin_InputCtx(
 	key string, value interface{},
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
@@ -129,414 +136,272 @@ func (to *TestOptions[C, M, D]) Gin_SetCtx(
 }
 
 /*
-Sets a gin ctx key to a calculated value based on the state
+Specify a key and a pointer to a value for a key-value pair in the gin context
+prior to execution.
+Has Priority = tests.DefaultInputPriority
 */
-func (to *TestOptions[C, M, D]) Gin_SetCtx_F(
-	key string, valueFunction func(state *TestState[C, M, D]) interface{},
+func (to *TestOptions[C, M, D]) Gin_InputCtx_P(
+	key string, valuePointer interface{},
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
 		ctx := convertToGinDataInterface(state.Data).GetCtx()
-		ctx.Set(key, valueFunction(state))
-	})
-}
-
-func (to *TestOptions[C, M, D]) Gin_SetMethodAndURL(
-	method, url string,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultPreparePriority, func(state *TestState[C, M, D]) {
-		var err error
-		ctx := convertToGinDataInterface(state.Data).GetCtx()
-		ctx.Request.Method = method
-		ctx.Request.URL, err = urlpkg.Parse(url)
-		if err != nil {
-			panic(err)
-		}
+		ctx.Set(key, removeInterfacePointer(valuePointer))
 	})
 }
 
 /*
-Sets a specific value in the query string
+Sets a gin ctx key-value pair based on a provided callback that calculates
+that value when this option is reached.
+Has Priority = tests.DefaultInputPriority
 */
-func (to *TestOptions[C, M, D]) Gin_SetQuery(
-	key string, value string,
+func (to *TestOptions[C, M, D]) Gin_InputCtx_C(
+	key string, callbackFunction func() interface{},
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
 		ctx := convertToGinDataInterface(state.Data).GetCtx()
-		u := ctx.Request.URL.Query()
-		u.Add(key, value)
-		ctx.Request.URL.RawQuery = u.Encode()
+		ctx.Set(key, callbackFunction())
 	})
 }
 
 /*
-Sets a specific value in the query string
+Sets a gin ctx key-value pair based on a provided callback that calculates
+that value based on the value of the TestState when this option is reached.
+Has Priority = tests.DefaultInputPriority
 */
-func (to *TestOptions[C, M, D]) Gin_SetQuery_P(
-	key string, value *string,
+func (to *TestOptions[C, M, D]) Gin_InputCtx_SC(
+	key string, callbackFunction func(state *TestState[C, M, D]) interface{},
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
 		ctx := convertToGinDataInterface(state.Data).GetCtx()
-		u := ctx.Request.URL.Query()
-		u.Add(key, *value)
-		ctx.Request.URL.RawQuery = u.Encode()
+		ctx.Set(key, callbackFunction(state))
 	})
 }
 
-/*
-Sets a gin param value in the query string
-*/
-func (to *TestOptions[C, M, D]) Gin_SetQuery_F(
-	key string, valueFunction func(state *TestState[C, M, D]) string,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
-		ctx := convertToGinDataInterface(state.Data).GetCtx()
-		u := ctx.Request.URL.Query()
-		u.Add(key, valueFunction(state))
-		ctx.Request.URL.RawQuery = u.Encode()
-	})
-}
+/////////////////////
+// METHOD AND URLS //
+/////////////////////
 
-/*
-Sets a specific value in params
-*/
-func (to *TestOptions[C, M, D]) Gin_SetParam(
-	key string, value string,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
-		ctx := convertToGinDataInterface(state.Data).GetCtx()
-		ctx.AddParam(key, value)
-	})
-}
-
-/*
-Sets a specific value in params
-*/
-func (to *TestOptions[C, M, D]) Gin_SetParam_P(
-	key string, value *string,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
-		ctx := convertToGinDataInterface(state.Data).GetCtx()
-		ctx.AddParam(key, *value)
-	})
-}
-
-/*
-Sets a gin param value in params
-*/
-func (to *TestOptions[C, M, D]) Gin_SetParam_F(
-	key string, valueFunction func(state *TestState[C, M, D]) string,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
-		ctx := convertToGinDataInterface(state.Data).GetCtx()
-		ctx.AddParam(key, valueFunction(state))
-	})
-}
-
-/*
-Write a specific body value to the test. If you need to write this
-value based on the options, use WriteGinBody() instead. You can omit
-the args to method and url to leave them empty. For most tests, that
-will be sufficient.
-*/
-func (to *TestOptions[C, M, D]) Gin_SetBody(
-	value interface{},
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
-		writeGinBody(state, handleDereference(value))
-	})
-}
-
-/*
-Write a value to the test request body. You can omit the args
-to method and url to leave them empty. For most tests, that
-will be sufficient.
-*/
-func (to *TestOptions[C, M, D]) Gin_SetBody_F(
-	f func(state *TestState[C, M, D]) []interface{},
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
-		writeGinBody(state, f(state))
-	})
-}
-
-/*
-Write a header to the request being made.
-*/
-func (to *TestOptions[C, M, D]) Gin_SetHeader(
-	key, value string,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
-		writeGinHeaders(state, map[string]string{key: value})
-	})
-}
-
-/*
-Write a header to the request being made.
-*/
-func (to *TestOptions[C, M, D]) Gin_SetHeader_P(
-	key string, value *string,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
-		writeGinHeaders(state, map[string]string{key: *value})
-	})
-}
-
-/*
-Write header values to the request being made.
-*/
-func (to *TestOptions[C, M, D]) Gin_SetHeaders(
-	headers map[string]string,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
-		writeGinHeaders(state, headers)
-	})
-}
-
-/*
-Write header values to the request being made.
-*/
-func (to *TestOptions[C, M, D]) Gin_SetHeaders_P(
-	headers map[string]*string,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
-		h := map[string]string{}
-		for k, v := range headers {
-			h[k] = *v
-		}
-		writeGinHeaders(state, h)
-	})
-}
-
-/*
-Write a header to the request being made.
-*/
-func (to *TestOptions[C, M, D]) Gin_SetHeader_F(
-	key string, valueFunction func(state *TestState[C, M, D]) string,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
-		writeGinHeaders(state, map[string]string{key: valueFunction(state)})
-	})
-}
-
-/*
-Write header values to the request being made.
-*/
-func (to *TestOptions[C, M, D]) Gin_SetHeaders_F(
-	headersFunction func(state *TestState[C, M, D]) map[string]string,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
-		writeGinHeaders(state, headersFunction(state))
-	})
-}
-
-/*
-Write a header to the request being made.
-*/
-func (to *TestOptions[C, M, D]) Gin_SetCookie(
-	cookie *http.Cookie,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
-		writeGinCookies(state, []*http.Cookie{cookie})
-	})
-}
-
-/*
-Write header values to the request being made.
-*/
-func (to *TestOptions[C, M, D]) Gin_SetCookies(
-	cookies []*http.Cookie,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
-		writeGinCookies(state, cookies)
-	})
-}
-
-/*
-Write a header to the request being made.
-*/
-func (to *TestOptions[C, M, D]) Gin_SetCookie_F(
-	cookieFunction func(state *TestState[C, M, D]) *http.Cookie,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
-		writeGinCookies(state, []*http.Cookie{cookieFunction(state)})
-	})
-}
-
-/*
-Write header values to the request being made.
-*/
-func (to *TestOptions[C, M, D]) Gin_SetCookies_F(
-	cookiesFunction func(state *TestState[C, M, D]) []*http.Cookie,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
-		writeGinCookies(state, cookiesFunction(state))
-	})
-}
-
-////////////
-// OUTPUT //
-////////////
-
-/*
-Ensures the http code that's written to the recorder matches
-*/
-func (to *TestOptions[C, M, D]) Gin_OutputCode(
-	code int,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
-		recorder := convertToGinDataInterface(state.Data).GetRecorder()
-		state.Assertions.Equal(code, recorder.Code)
-	})
-}
-
-/*
-Ensures the http code that's written to the recorder matches
-*/
-func (to *TestOptions[C, M, D]) Gin_OutputCode_P(
-	code *int,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
-		recorder := convertToGinDataInterface(state.Data).GetRecorder()
-		state.Assertions.Equal(*code, recorder.Code)
-	})
-}
-
-/*
-Ensures the http code that's written to the recorder matches
-*/
-func (to *TestOptions[C, M, D]) Gin_OutputCode_F(
-	f func(state *TestState[C, M, D]) int,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
-		recorder := convertToGinDataInterface(state.Data).GetRecorder()
-		state.Assertions.Equal(f(state), recorder.Code)
-	})
-}
-
-/*
-Ensures the body of the recorder matches the data passed in.
-*/
-func (to *TestOptions[C, M, D]) Gin_OutputBody(
-	expectedBody interface{},
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
-
-		// Grab the response bytes
-		recorder := convertToGinDataInterface(state.Data).GetRecorder()
-		responseBytes, err := io.ReadAll(recorder.Result().Body)
-		if err != nil {
-			panic(err)
-		}
-
-		// Assert equality
-		state.Assertions.Equal(string(getJsonBytes(expectedBody)), string(responseBytes))
-
-	})
-}
-
-/*
-Ensures the body of the recorder matches the data passed in.
-*/
-func (to *TestOptions[C, M, D]) Gin_OutputBody_F(
-	f func(state *TestState[C, M, D]) interface{},
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
-
-		// Grab the response bytes
-		recorder := convertToGinDataInterface(state.Data).GetRecorder()
-		responseBytes, err := io.ReadAll(recorder.Result().Body)
-		if err != nil {
-			panic(err)
-		}
-
-		// Assert equality
-		state.Assertions.Equal(string(getJsonBytes(f(state))), string(responseBytes))
-
-	})
-}
-
-/*
-Ensures the cookies that are written to the recorder match.
-*/
-func (to *TestOptions[C, M, D]) Gin_OutputCookie(
-	expectedCookies []*http.Cookie,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
-		recorder := convertToGinDataInterface(state.Data).GetRecorder()
-		actualCookies := recorder.Result().Cookies()
-
-		// Make sure the same number of cookies are returned by both
-		state.Assertions.Equal(len(expectedCookies), len(actualCookies))
-
-		for _, expectedCookie := range expectedCookies {
-
-			foundExpectedCookie := false
-			for _, actualCookie := range actualCookies {
-
-				// Make sure cookies with the same name are identical
-				if expectedCookie.Name == actualCookie.Name {
-					state.Assertions.Equal(expectedCookie, actualCookie)
-					foundExpectedCookie = true
-					break
-				}
-
-			}
-
-			// Make sure each expected cookie is actually found
-			state.Assertions.Equal(true, foundExpectedCookie)
-		}
-	})
-}
-
-/*
-Ensures the cookies that are written to the recorder match.
-*/
-func (to *TestOptions[C, M, D]) Gin_OutputCookie_F(
-	f func(state *TestState[C, M, D]) []*http.Cookie,
-) *TestOptions[C, M, D] {
-	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
-		recorder := convertToGinDataInterface(state.Data).GetRecorder()
-		actualCookies := recorder.Result().Cookies()
-		expectedCookies := f(state)
-
-		// Make sure the same number of cookies are returned by both
-		state.Assertions.Equal(len(expectedCookies), len(actualCookies))
-
-		for _, expectedCookie := range expectedCookies {
-
-			foundExpectedCookie := false
-			for _, actualCookie := range actualCookies {
-
-				// Make sure cookies with the same name are identical
-				if expectedCookie.Name == actualCookie.Name {
-					state.Assertions.Equal(expectedCookie, actualCookie)
-					foundExpectedCookie = true
-					break
-				}
-
-			}
-
-			// Make sure each expected cookie is actually found
-			state.Assertions.Equal(true, foundExpectedCookie)
-		}
-	})
-}
-
-/////////////
-// HELPERS //
-/////////////
-
-// Helper to convert data objects to GinDataInterfaces
-func convertToGinDataInterface(data interface{}) GinDataInterface {
-	ginData, ok := data.(GinDataInterface)
+// Internal method for handling method and url sets
+func applyGin_InputMethodAndURL[C, M, D any](state *TestState[C, M, D], method, url interface{}) {
+	methodString, ok := method.(string)
 	if !ok {
-		panic("GinTester data type doesn't support GetCtx method")
+		panic("could not convert method to a string!")
 	}
-	return ginData
+	urlString, ok := url.(string)
+	if !ok {
+		panic("could not convert url to a string!")
+	}
+
+	var err error
+	ctx := convertToGinDataInterface(state.Data).GetCtx()
+	ctx.Request.Method = methodString
+	ctx.Request.URL, err = urlpkg.Parse(urlString)
+	if err != nil {
+		panic(err)
+	}
 }
 
-// Gin body write function
-func writeGinBody[C, M, D any](
+/*
+Set the method and URL for a particular test. If net/url.Parse(url) would cause
+an error, this will panic. This will also panic if the method and url are not
+string types.
+Has Priority = tests.DefaultSetupPriority
+Supports DeRef()
+*/
+func (to *TestOptions[C, M, D]) Gin_InputMethodAndURL(
+	method, url interface{},
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultSetupPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputMethodAndURL(state, handleDereference(method), handleDereference(url))
+	})
+}
+
+/*
+Specify pointers to the method and URL for a particular test. If
+net/url.Parse(url) would cause an error, this will panic.
+Has Priority = tests.DefaultSetupPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_InputMethodAndURL_P(
+	method, url *string,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultSetupPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputMethodAndURL(state, *method, *url)
+	})
+}
+
+/*
+Set the method and URL for a particular test based on a provided callback that
+calculates those values when this option is reached. If net/url.Parse(url) would
+cause an error, this will panic.
+Has Priority = tests.DefaultSetupPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_InputMethodAndURL_C(
+	callbackFunction func() (method, url string),
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultSetupPriority, func(state *TestState[C, M, D]) {
+		method, url := callbackFunction()
+		applyGin_InputMethodAndURL(state, method, url)
+	})
+}
+
+/*
+Set the method and URL for a particular test based on a provided callback that
+calculates those values based on the value of the TestState when this option is
+reached. If net/url.Parse(url) would cause an error, this will panic.
+Has Priority = tests.DefaultSetupPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_InputMethodAndURL_SC(
+	callbackFunction func(state *TestState[C, M, D]) (method, url string),
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultSetupPriority, func(state *TestState[C, M, D]) {
+		method, url := callbackFunction(state)
+		applyGin_InputMethodAndURL(state, method, url)
+	})
+}
+
+//////////////////
+// QUERY PARAMS //
+//////////////////
+
+// Internal function to set a query param
+func applyGin_InputQuery(ginInterface interface{}, key string, value interface{}) {
+	valueString, ok := value.(string)
+	if !ok {
+		panic("could not convert value to a string!")
+	}
+
+	ctx := convertToGinDataInterface(ginInterface).GetCtx()
+	u := ctx.Request.URL.Query()
+	u.Add(key, valueString)
+	ctx.Request.URL.RawQuery = u.Encode()
+}
+
+/*
+Directly specify a key-value pair to be included the request query string.
+Has Priority = tests.DefaultInputPriority
+value arg Supports DeRef()
+*/
+func (to *TestOptions[C, M, D]) Gin_InputQuery(
+	key string, value interface{},
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputQuery(state.Data, key, handleDereference(value))
+	})
+}
+
+/*
+Specify a pointer to a key and value of a key-value pair to be included the
+request query string.
+Has Priority = tests.DefaultInputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_InputQuery_P(
+	key string, value *string,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputQuery(state.Data, key, *value)
+	})
+}
+
+/*
+Specify a key-value pair to be included the request query string based on a
+provided callback that calculates that value when this option is reached.
+*/
+func (to *TestOptions[C, M, D]) Gin_InputQuery_C(
+	key string, callbackFunction func() string,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputQuery(state.Data, key, callbackFunction())
+	})
+}
+
+/*
+Specify a key-value pair to be included the request query string based on a
+provided callback that calculates that value based on the value of the TestState
+when this option is reached.
+*/
+func (to *TestOptions[C, M, D]) Gin_InputQuery_SC(
+	key string, callbackFunction func(state *TestState[C, M, D]) string,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputQuery(state.Data, key, callbackFunction(state))
+	})
+}
+
+/////////////////////
+// SET PATH PARAMS //
+/////////////////////
+
+// Internal function to set a query param
+func applyGin_InputParam(ginInterface interface{}, key string, value interface{}) {
+	valueString, ok := value.(string)
+	if !ok {
+		panic("could not convert value to a string!")
+	}
+
+	ctx := convertToGinDataInterface(ginInterface).GetCtx()
+	u := ctx.Request.URL.Query()
+	u.Add(key, valueString)
+	ctx.Request.URL.RawQuery = u.Encode()
+}
+
+/*
+Set a specific key-value pair in params.
+Has Priority = tests.DefaultInputPriority
+value arg Supports DeRef()
+*/
+func (to *TestOptions[C, M, D]) Gin_InputParam(
+	key string, value interface{},
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputParam(state.Data, key, handleDereference(value))
+	})
+}
+
+/*
+Set a specific key and a pointer to its value in params
+Has Priority = tests.DefaultInputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_InputParam_P(
+	key string, value *string,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputParam(state.Data, key, *value)
+	})
+}
+
+/*
+Set a specific key-value pair in params based on a provided callback that
+calculates that value when this option is reached.
+Has Priority = tests.DefaultInputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_InputParam_C(
+	key string, valueFunction func() string,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputParam(state.Data, key, valueFunction())
+	})
+}
+
+/*
+Set a specific key-value pair in params based on a provided callback that
+calculates that value based on the value of the TestState when this option is
+reached.
+Has Priority = tests.DefaultInputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_InputParam_SC(
+	key string, valueFunction func(state *TestState[C, M, D]) string,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputParam(state.Data, key, valueFunction(state))
+	})
+}
+
+////////////////////
+// SET BODY VALUE //
+////////////////////
+
+// Internal function to write a body value
+func applyGin_InputBody[C, M, D any](
 	state *TestState[C, M, D],
 	value interface{},
 ) {
@@ -551,12 +416,76 @@ func writeGinBody[C, M, D any](
 	}
 }
 
-// Gin header write function
-func writeGinHeaders[C, M, D any](
+/*
+Set the body to the provided value.
+Has Priority = tests.DefaultInputPriority
+Supports DeRef()
+*/
+func (to *TestOptions[C, M, D]) Gin_InputBody(
+	value interface{},
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputBody(state, handleDereference(value))
+	})
+}
+
+/*
+Set a pointer to the value the body shoudl take during the test.
+Has Priority = tests.DefaultInputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_InputBody_P(
+	valuePointer interface{},
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputBody(state, removeInterfacePointer(valuePointer))
+	})
+}
+
+/*
+Set the body to the provided value based on a provided callback that calculates
+that value when this option is reached.
+Supports DeRef()
+*/
+func (to *TestOptions[C, M, D]) Gin_InputBody_C(
+	f func() []interface{},
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputBody(state, f())
+	})
+}
+
+/*
+Set the body to the provided value based on a provided callback that calculates
+that value based on the value of the TestState when this option is reached.
+Supports DeRef()
+*/
+func (to *TestOptions[C, M, D]) Gin_InputBody_SC(
+	f func(state *TestState[C, M, D]) []interface{},
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputBody(state, f(state))
+	})
+}
+
+/////////////////
+// GIN HEADERS //
+/////////////////
+
+// Internal header write function
+func applyGin_InputHeaders[C, M, D any](
 	state *TestState[C, M, D],
-	headers map[string]string,
+	headersInterface map[string]interface{},
 ) {
 	ctx := convertToGinDataInterface(state.Data).GetCtx()
+
+	headers := map[string]string{}
+	for key, valueInterface := range headersInterface {
+		valueString, ok := valueInterface.(string)
+		if !ok {
+			panic("could not convert header value to a string!")
+		}
+		headers[key] = valueString
+	}
 
 	if ctx.Request.Header == nil {
 		ctx.Request.Header = http.Header{}
@@ -567,8 +496,114 @@ func writeGinHeaders[C, M, D any](
 	}
 }
 
-// Gin cookie write function
-func writeGinCookies[C, M, D any](
+/*
+Write a header value.
+Has Priority = tests.DefaultInputPriority
+value arg Supports DeRef()
+*/
+func (to *TestOptions[C, M, D]) Gin_InputHeader(
+	key string, value interface{},
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputHeaders(state, map[string]interface{}{key: handleDereference(value)})
+	})
+}
+
+/*
+Write a header value.
+Has Priority = tests.DefaultInputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_InputHeader_P(
+	key string, value *string,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputHeaders(state, map[string]interface{}{key: *value})
+	})
+}
+
+/*
+Write a header value based on a provided callback that calculates
+that value when this option is reached.
+Has Priority = tests.DefaultInputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_InputHeader_C(
+	key string, callbackFunction func() string,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputHeaders(state, map[string]interface{}{key: callbackFunction()})
+	})
+}
+
+/*
+Write a header value based on a provided callback that calculates
+that value based on the value of the TestState when this option is reached.
+Has Priority = tests.DefaultInputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_InputHeader_SC(
+	key string, callbackFunction func(state *TestState[C, M, D]) string,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputHeaders(state, map[string]interface{}{key: callbackFunction(state)})
+	})
+}
+
+/*
+Write header values.
+Has Priority = tests.DefaultInputPriority
+map value args Supports DeRef()
+*/
+func (to *TestOptions[C, M, D]) Gin_InputHeaders(
+	headers map[string]interface{},
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputHeaders(state, mapMap(headers, func(value interface{}) interface{} { return handleDereference(value) }))
+	})
+}
+
+/*
+Write header values where the values are all pointers.
+Has Priority = tests.DefaultInputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_InputHeaders_P(
+	headers map[string]*string,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputHeaders(state, mapMap(headers, func(value *string) interface{} { return *value }))
+	})
+}
+
+/*
+Write header values based on a provided callback that calculates
+that value when this option is reached.
+Has Priority = tests.DefaultInputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_InputHeaders_C(
+	key string, valueFunction func() string,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputHeaders(state, map[string]interface{}{key: valueFunction()})
+	})
+}
+
+/*
+Write header values based on a provided callback that calculates
+that value based on the value of the TestState when this option is reached.
+Has Priority = tests.DefaultInputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_InputHeaders_SC(
+	headersFunction func(state *TestState[C, M, D]) map[string]interface{},
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputHeaders(state, headersFunction(state))
+	})
+}
+
+/////////////
+// COOKIES //
+/////////////
+
+// Internal cookie write function
+func applyGin_InputCookies[C, M, D any](
 	state *TestState[C, M, D],
 	cookies []*http.Cookie,
 ) {
@@ -579,11 +614,313 @@ func writeGinCookies[C, M, D any](
 	}
 }
 
+/*
+Add a single cookie to the request.
+Has Priority = tests.DefaultInputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_InputCookie(
+	cookie *http.Cookie,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputCookies(state, []*http.Cookie{cookie})
+	})
+}
+
+/*
+Add a single cookie to the request based on a provided callback that calculates
+that value when this option is reached.
+Has Priority = tests.DefaultInputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_InputCookie_C(
+	callbackFunction func() *http.Cookie,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputCookies(state, []*http.Cookie{callbackFunction()})
+	})
+}
+
+/*
+Add a single cookie to the request based on a provided callback that calculates
+that value based on the value of the TestState when this option is reached.
+Has Priority = tests.DefaultInputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_InputCookie_SC(
+	callbackFunction func(state *TestState[C, M, D]) *http.Cookie,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputCookies(state, []*http.Cookie{callbackFunction(state)})
+	})
+}
+
+/*
+Adds many cookies to the request.
+Has Priority = tests.DefaultInputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_InputCookies(
+	cookies []*http.Cookie,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputCookies(state, cookies)
+	})
+}
+
+/*
+Adds many cookies to the request based on a provided callback that calculates
+that value when this option is reached.
+Has Priority = tests.DefaultInputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_InputCookies_C(
+	cookiesFunction func() []*http.Cookie,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputCookies(state, cookiesFunction())
+	})
+}
+
+/*
+Adds many cookies to the request based on a provided callback that calculates
+that value based on the value of the TestState when this option is reached.
+Has Priority = tests.DefaultInputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_InputCookies_SC(
+	cookiesFunction func(state *TestState[C, M, D]) []*http.Cookie,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultInputPriority, func(state *TestState[C, M, D]) {
+		applyGin_InputCookies(state, cookiesFunction(state))
+	})
+}
+
+/////////////////
+// OUTPUT CODE //
+/////////////////
+
+/*
+Ensures the http code that's written to the recorder matches the provided code
+Has Priority = tests.DefaultOutputPriority
+Supports DeRef()
+*/
+func (to *TestOptions[C, M, D]) Gin_OutputCode(
+	code interface{},
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
+		recorder := convertToGinDataInterface(state.Data).GetRecorder()
+		state.Assertions.Equal(handleDereference(code), recorder.Code)
+	})
+}
+
+/*
+Ensures the http code that's written to the recorder matches the code that is
+pointed to.
+Has Priority = tests.DefaultOutputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_OutputCode_P(
+	codePointer *int,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
+		recorder := convertToGinDataInterface(state.Data).GetRecorder()
+		state.Assertions.Equal(*codePointer, recorder.Code)
+	})
+}
+
+/*
+Ensures the http code that's written to the recorder matches based on a provided
+callback that calculates that value when this option is reached.
+Has Priority = tests.DefaultOutputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_OutputCode_C(
+	callbackFunction func() int,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
+		recorder := convertToGinDataInterface(state.Data).GetRecorder()
+		state.Assertions.Equal(callbackFunction(), recorder.Code)
+	})
+}
+
+/*
+Ensures the http code that's written to the recorder matches based on a provided
+callback that calculates that value based on the value of the TestState when
+this option is reached.
+Has Priority = tests.DefaultOutputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_OutputCode_SC(
+	callbackFunction func(state *TestState[C, M, D]) int,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
+		recorder := convertToGinDataInterface(state.Data).GetRecorder()
+		state.Assertions.Equal(callbackFunction(state), recorder.Code)
+	})
+}
+
+/////////////////
+// OUTPUT BODY //
+/////////////////
+
+// Internal function for managing uotput body checks
+func applyGin_OutputBody[C, M, D any](state *TestState[C, M, D], expectedBody interface{}) {
+	// Grab the response bytes
+	recorder := convertToGinDataInterface(state.Data).GetRecorder()
+	responseBytes, err := io.ReadAll(recorder.Result().Body)
+	if err != nil {
+		panic(err)
+	}
+
+	// Assert equality
+	state.Assertions.Equal(string(getJsonBytes(expectedBody)), string(responseBytes))
+}
+
+/*
+Ensures the body of the recorder matches the data passed in.
+Has Priority = tests.DefaultOutputPriority
+Supports DeRef()
+*/
+func (to *TestOptions[C, M, D]) Gin_OutputBody(
+	expectedBody interface{},
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
+		applyGin_OutputBody(state, handleDereference(expectedBody))
+	})
+}
+
+/*
+Ensures the body of the recorder matches the data pointed to.
+Has Priority = tests.DefaultOutputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_OutputBody_P(
+	expectedBodyPointer interface{},
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
+		applyGin_OutputBody(state, removeInterfacePointer(expectedBodyPointer))
+	})
+}
+
+/*
+Ensures the body of the recorder matches the data passed in based on a provided
+callback that calculates that value when this option is reached.
+Has Priority = tests.DefaultOutputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_OutputBody_C(
+	callbackFunction func(state *TestState[C, M, D]) interface{},
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
+		applyGin_OutputBody(state, callbackFunction(state))
+	})
+}
+
+/*
+Ensures the body of the recorder matches the data passed in based on a provided
+callback that calculates that value based on the value of the TestState when
+this option is reached.
+Has Priority = tests.DefaultOutputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_OutputBody_SC(
+	callbackFunction func(state *TestState[C, M, D]) interface{},
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
+		applyGin_OutputBody(state, callbackFunction(state))
+	})
+}
+
+////////////////////
+// OUTPUT COOKIES //
+////////////////////
+
+// Internal cookie verification function
+func applyGin_OutputCookies[C, M, D any](
+	state *TestState[C, M, D],
+	expectedCookies []*http.Cookie,
+) {
+	recorder := convertToGinDataInterface(state.Data).GetRecorder()
+	actualCookies := recorder.Result().Cookies()
+
+	// Make sure the same number of cookies are returned by both
+	state.Assertions.Equal(len(expectedCookies), len(actualCookies))
+
+	for _, expectedCookie := range expectedCookies {
+
+		foundExpectedCookie := false
+		for _, actualCookie := range actualCookies {
+
+			// Make sure cookies with the same name are identical
+			if expectedCookie.Name == actualCookie.Name {
+				state.Assertions.Equal(expectedCookie, actualCookie)
+				foundExpectedCookie = true
+				break
+			}
+
+		}
+
+		// Make sure each expected cookie is actually found
+		state.Assertions.Equal(true, foundExpectedCookie)
+	}
+}
+
+/*
+Ensures all cookies that are written to the recorder match all provided cookies.
+Has Priority = tests.DefaultOutputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_OutputCookies(
+	expectedCookies []*http.Cookie,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
+		applyGin_OutputCookies(state, expectedCookies)
+	})
+}
+
+/*
+Ensures all cookies that are written to the recorder match all provided cookies
+based on a provided callback that calculates that value when this option is
+reached.
+Has Priority = tests.DefaultOutputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_OutputCookies_C(
+	callbackFunction func() []*http.Cookie,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
+		applyGin_OutputCookies(state, callbackFunction())
+	})
+}
+
+/*
+Ensures all cookies that are written to the recorder match all provided cookies
+based on a provided callback that calculates that value based on the value of
+the TestState when this option is reached.
+Has Priority = tests.DefaultOutputPriority
+*/
+func (to *TestOptions[C, M, D]) Gin_OutputCookies_SC(
+	callbackFunction func(state *TestState[C, M, D]) []*http.Cookie,
+) *TestOptions[C, M, D] {
+	return to.copyAndAppend(DefaultOutputPriority, func(state *TestState[C, M, D]) {
+		applyGin_OutputCookies(state, callbackFunction(state))
+	})
+}
+
+/*
+Create a basic cookie with a name and a value. Shortcut for creating a cookie
+like this:
+
+	&http.Cookie{
+		Name:  name,
+		Value: value,
+	}
+*/
 func SimpleCookie(name, value string) *http.Cookie {
 	return &http.Cookie{
 		Name:  name,
 		Value: value,
 	}
+}
+
+/////////////
+// HELPERS //
+/////////////
+
+// Helper to convert data objects to GinDataInterfaces
+func convertToGinDataInterface(data interface{}) GinDataInterface {
+	ginData, ok := data.(GinDataInterface)
+	if !ok {
+		panic("GinTester data type doesn't support GetCtx method")
+	}
+	return ginData
 }
 
 func getJsonBytes(data interface{}) []byte {

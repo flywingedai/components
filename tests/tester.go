@@ -8,10 +8,9 @@ import (
 
 /*
 A tester is the base unit that handles mock testing for a component.
-Type P is the component params
-Type C is the component type
-Type M is the mocks type
-Type D is the data type
+Type C is the base component type
+Type M is the component mocks type
+Type D is the data type.
 */
 type Tester[C, M, D any] struct {
 
@@ -32,49 +31,69 @@ type Tester[C, M, D any] struct {
 	// Global options for this tester
 	Options *TestOptions[C, M, D]
 
-	// Whether or not the tester should run tests in parallel
+	/*
+		Whether or not the tester should run tests in parallel. This is not
+		reccommended unless you are utilizing test data.
+	*/
 	Parallel bool
 }
 
+/////////////////
+// NEW TESTERS //
+/////////////////
+
+// Internal hlper function for making a new tester
+func emptyTester[C, M, D any]() *Tester[C, M, D] {
+	tester := &Tester[C, M, D]{
+		Options:  &TestOptions[C, M, D]{},
+		branches: map[string]*TestOptions[C, M, D]{},
+	}
+	tester.Options.tester = tester
+	return tester
+}
+
 /*
-Create a new Tester with a specified Component, Mocks, and Data structure. Use
-tests.NullDataInitialization as the initDataFunction if you do not need
-to use the provided data object to facilitate your tester.
+Create a new Tester with a specified Component, Mocks, and Data structure.
 */
 func NewTester[C, M, D any](
 	buildMocksFunction func(*testing.T) (C, *M),
 	initDataFunction func() *D,
 ) *Tester[C, M, D] {
-	tester := &Tester[C, M, D]{
-		buildMocksFunction: buildMocksFunction,
-		initDataFunction:   initDataFunction,
-		Options:            &TestOptions[C, M, D]{},
-		branches:           map[string]*TestOptions[C, M, D]{},
-	}
-	tester.Options.tester = tester
-
+	tester := emptyTester[C, M, D]()
+	tester.buildMocksFunction = buildMocksFunction
+	tester.initDataFunction = initDataFunction
 	return tester
 }
 
 /*
 Create a new Tester with a specified Component and Mocks structure. Requires
-a specification of a default initialization function.
+a provided initialization function.
 */
 func NewTesterWithInit[C, M any](
 	buildMocksFunction func(*testing.T) (C, *M),
 	initDataFunction func(),
 ) *Tester[C, M, interface{}] {
-	tester := &Tester[C, M, interface{}]{
-		buildMocksFunction: buildMocksFunction,
-		initDataFunction: func() *interface{} {
-			initDataFunction()
-			return nil
-		},
-		Options:  &TestOptions[C, M, interface{}]{},
-		branches: map[string]*TestOptions[C, M, interface{}]{},
+	tester := emptyTester[C, M, interface{}]()
+	tester.buildMocksFunction = buildMocksFunction
+	tester.initDataFunction = func() *interface{} {
+		initDataFunction()
+		return nil
 	}
-	tester.Options.tester = tester
+	return tester
+}
 
+/*
+Create a new Tester with a specified Component and Mocks structure.
+No initialization step is called for this kind of tester. The inferred
+type for the data is interface{}, but it will always be set to nil for
+tests created this way.
+*/
+func NewTesterWithoutData[C, M any](
+	buildMocksFunction func(*testing.T) (C, *M),
+) *Tester[C, M, interface{}] {
+	tester := emptyTester[C, M, interface{}]()
+	tester.buildMocksFunction = buildMocksFunction
+	tester.initDataFunction = func() *interface{} { return nil }
 	return tester
 }
 
@@ -89,51 +108,30 @@ interfaces. You should ignore those fields in the Options.
 func NewFunctionTester[D any](
 	initDataFunction func() *D,
 ) *Tester[interface{}, interface{}, D] {
-	tester := &Tester[interface{}, interface{}, D]{
-		buildMocksFunction: func(t *testing.T) (interface{}, *interface{}) { return nil, nil },
-		initDataFunction:   initDataFunction,
-		Options:            &TestOptions[interface{}, interface{}, D]{},
-		branches:           map[string]*TestOptions[interface{}, interface{}, D]{},
-	}
-	tester.Options.tester = tester
-
+	tester := emptyTester[interface{}, interface{}, D]()
+	tester.buildMocksFunction = func(t *testing.T) (interface{}, *interface{}) { return nil, nil }
+	tester.initDataFunction = initDataFunction
 	return tester
 }
 
-/*
-Create a new Tester with a specified Component and Mocks structure.
-No initialization step is called for this kind of tester. The inferred
-type for the data is interface{}, but it will always be set to nil for
-tests created this way.
-*/
-func NewTesterWithoutData[C, M any](
-	buildMocksFunction func(*testing.T) (C, *M),
-) *Tester[C, M, interface{}] {
-	tester := &Tester[C, M, interface{}]{
-		buildMocksFunction: buildMocksFunction,
-		initDataFunction: func() *interface{} {
-			return nil
-		},
-		Options:  &TestOptions[C, M, interface{}]{},
-		branches: map[string]*TestOptions[C, M, interface{}]{},
-	}
-	tester.Options.tester = tester
-
-	return tester
-}
+////////////////////
+// TESTER METHODS //
+////////////////////
 
 /*
 Create a new options for this tester without any of the existing options
-included. Makes it slightly easier to branch
+included. Makes it slightly easier to create branches.
 */
 func (tester *Tester[C, M, D]) NewOptions() *TestOptions[C, M, D] {
 	return NewOptions[C, M, D](tester)
 }
 
 /*
-Checkout the most recent entry of the tag in the options. Return
-all options prior to that tag, including that tag. If the tag is
-not found, this will panic.
+Checkout the tagged TestOptions branch.
+
+Once a tag is applied, you can fetch it:
+from any child TestOptions by: testOptions.Checkout($tagName)
+or from the parent tester by: tester.Checkout($tagName)
 */
 func (tester *Tester[C, M, D]) Checkout(
 	tag string,
@@ -146,9 +144,10 @@ func (tester *Tester[C, M, D]) Checkout(
 }
 
 /*
-Add tests that run a method of the parent component
+Register tests with the tester. All registered tests will be run when
+tester.Test(t) is called
 */
-func (tester *Tester[C, M, D]) AddTests(
+func (tester *Tester[C, M, D]) RegisterTests(
 	tests ...*TestConfig[C, M, D],
 ) *Tester[C, M, D] {
 	tester.tests = append(tester.tests, tests...)
@@ -156,7 +155,7 @@ func (tester *Tester[C, M, D]) AddTests(
 }
 
 /*
-Attach a group id to the tester so that all tests under this tester
+Attach a group id to the tester so that all test names under this tester
 automatically have a prefix attached to them.
 */
 func (tester *Tester[C, M, D]) WithGroupID(

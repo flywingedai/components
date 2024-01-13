@@ -35,7 +35,7 @@ type TestState[C, M, D any] struct {
 Helper function for adding a test to a tester. Makes it easier to do this inline
 */
 func (tc *TestConfig[C, M, D]) Register(tester *Tester[C, M, D]) *TestConfig[C, M, D] {
-	tester.AddTests(tc)
+	tester.RegisterTests(tc)
 	return tc
 }
 

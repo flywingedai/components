@@ -29,18 +29,22 @@ type testOption[C, M, D any] struct {
 //////////////////
 
 /*
-The TestOptions object is responsible providing binding to all the useful test
-options available. It implemented method chaining in order to make for a more
-simple interface for creating options.
+The TestOptions object is responsible for providing bindings to all the test
+options available. It implements method chaining in order to make for a more
+simple interface for creating these options.
 
 Each chained option should return a completely new TestOptions struct so as to
-allow easy bifrucation of test setup.
+allow easily expandable test setups.
 */
 type TestOptions[C, M, D any] struct {
 	options []*testOption[C, M, D]
 	tester  *Tester[C, M, D]
 }
 
+/*
+Create a new TestOptions object based on the type of a given tester. That tester
+is then automatically set as the new TestOptions's tester for branching.
+*/
 func NewOptions[C, M, D any](tester *Tester[C, M, D]) *TestOptions[C, M, D] {
 	return &TestOptions[C, M, D]{
 		options: []*testOption[C, M, D]{},
@@ -48,7 +52,7 @@ func NewOptions[C, M, D any](tester *Tester[C, M, D]) *TestOptions[C, M, D] {
 	}
 }
 
-// Helper copy function
+// Create a shallow copy of test options.
 func (to *TestOptions[C, M, D]) Copy() *TestOptions[C, M, D] {
 	testOptions := []*testOption[C, M, D]{}
 	testOptions = append(testOptions, to.options...)
@@ -58,9 +62,7 @@ func (to *TestOptions[C, M, D]) Copy() *TestOptions[C, M, D] {
 	}
 }
 
-/*
-Append creates a new TestOptions object with all the options provided combined.
-*/
+// Create a new TestOptions object with all the options combined.
 func (to *TestOptions[C, M, D]) Append(
 	otherTestOptions ...*TestOptions[C, M, D],
 ) *TestOptions[C, M, D] {
@@ -106,10 +108,16 @@ func (to *TestOptions[C, M, D]) NewOption(
 	return testOptions
 }
 
+//////////////////
+// CONTROL FLOW //
+//////////////////
+
 /*
-Create a tag which allows options to be "checked-out" later. This
-allows more simple control over options when writing iterative
-tests on each other.
+Create a tag which allows options to be "checked-out" later.
+
+Once a tag is applied, you can fetch it:
+from any child TestOptions by: testOptions.Checkout($tagName)
+or from the parent tester by: tester.Checkout($tagName)
 */
 func (to *TestOptions[C, M, D]) Tag(
 	tag string,
@@ -119,9 +127,11 @@ func (to *TestOptions[C, M, D]) Tag(
 }
 
 /*
-Checkout the most recent entry of the tag in the options. Return
-all options prior to that tag, including that tag. If the tag is
-not found, this will panic.
+Checkout the tagged TestOptions branch.
+
+Once a tag is applied, you can fetch it:
+from any child TestOptions by: testOptions.Checkout($tagName)
+or from the parent tester by: tester.Checkout($tagName)
 */
 func (to *TestOptions[C, M, D]) Checkout(
 	tag string,
@@ -180,6 +190,32 @@ func (to *TestOptions[C, M, D]) CreateFunctionTest(function interface{}, testNam
 		},
 		Options: to,
 	}
+}
+
+/*
+Create and register a new test based on the given function.
+*/
+func (to *TestOptions[C, M, D]) RegisterTest(
+	testName string,
+	getTestFunction func(state *TestState[C, M, D]) interface{},
+) *TestConfig[C, M, D] {
+	return to.CreateTest(testName, getTestFunction).Register(to.tester)
+}
+
+/*
+Create and register a new test which automatically fetches the named component
+method at runtime.
+*/
+func (to *TestOptions[C, M, D]) RegisterMethodTest(method, testName string) *TestConfig[C, M, D] {
+	return to.CreateMethodTest(method, testName).Register(to.tester)
+}
+
+/*
+Create and register a new test which automatically fetches the function given
+at runtime.
+*/
+func (to *TestOptions[C, M, D]) RegisterFunctionTest(function interface{}, testName string) *TestConfig[C, M, D] {
+	return to.CreateFunctionTest(function, testName).Register(to.tester)
 }
 
 /////////////

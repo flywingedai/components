@@ -1,39 +1,40 @@
 package tests
 
-var DefaultPreparePriority = -3
+var DefaultPreparePriority = -30
+var DefaultSetupPriority = -50
 
 /*
-Adjust data prior to runtime without care for test state
-Default Priority = -3
+Perform some generic action.
+Has Priority = tests.DefaultPreparePriority
 */
 func (to *TestOptions[C, M, D]) Prepare(
-	f func(),
+	prepareFunction func(),
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultPreparePriority, func(_ *TestState[C, M, D]) {
-		f()
+		prepareFunction()
 	})
 }
 
 /*
-Adjust data prior to runtime without care for mocks or component state
-Default Priority = -3
+Prepare some action dependant on the data in the internal TestState.
+Has Priority = tests.DefaultPreparePriority
 */
-func (to *TestOptions[C, M, D]) PrepareData(
-	f func(data *D),
+func (to *TestOptions[C, M, D]) Prepare_D(
+	prepareFunction func(data *D),
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultPreparePriority, func(state *TestState[C, M, D]) {
-		f(state.Data)
+		prepareFunction(state.Data)
 	})
 }
 
 /*
-Adjust state prior to other options
-Default Priority = -3
+Prepare some action dependant on the entirety of the internal TestState.
+Has Priority = tests.DefaultPreparePriority
 */
-func (to *TestOptions[C, M, D]) PrepareState(
-	f func(state *TestState[C, M, D]),
+func (to *TestOptions[C, M, D]) Prepare_S(
+	prepareFunction func(state *TestState[C, M, D]),
 ) *TestOptions[C, M, D] {
 	return to.copyAndAppend(DefaultPreparePriority, func(state *TestState[C, M, D]) {
-		f(state)
+		prepareFunction(state)
 	})
 }

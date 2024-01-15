@@ -33,7 +33,7 @@ type Tester[C, M, D any] struct {
 
 	/*
 		Whether or not the tester should run tests in parallel. This is not
-		reccommended unless you are utilizing test data.
+		recommended unless you are utilizing test data.
 	*/
 	Parallel bool
 }
@@ -42,7 +42,7 @@ type Tester[C, M, D any] struct {
 // NEW TESTERS //
 /////////////////
 
-// Internal hlper function for making a new tester
+// Internal helper function for making a new tester
 func emptyTester[C, M, D any]() *Tester[C, M, D] {
 	tester := &Tester[C, M, D]{
 		Options:  &TestOptions[C, M, D]{},
@@ -55,7 +55,7 @@ func emptyTester[C, M, D any]() *Tester[C, M, D] {
 /*
 Create a new Tester with a specified Component, Mocks, and Data structure.
 */
-func NewTester[C, M, D any](
+func NewTesterWithData[C, M, D any](
 	buildMocksFunction func(*testing.T) (C, *M),
 	initDataFunction func() *D,
 ) *Tester[C, M, D] {
@@ -88,7 +88,7 @@ No initialization step is called for this kind of tester. The inferred
 type for the data is interface{}, but it will always be set to nil for
 tests created this way.
 */
-func NewTesterWithoutData[C, M any](
+func NewTesterWithoutInit[C, M any](
 	buildMocksFunction func(*testing.T) (C, *M),
 ) *Tester[C, M, interface{}] {
 	tester := emptyTester[C, M, interface{}]()
@@ -111,6 +111,21 @@ func NewFunctionTester[D any](
 	tester := emptyTester[interface{}, interface{}, D]()
 	tester.buildMocksFunction = func(t *testing.T) (interface{}, *interface{}) { return nil, nil }
 	tester.initDataFunction = initDataFunction
+	return tester
+}
+
+/*
+Create a new Tester for a function or a group of functions. This
+does not require any components or mocks to run as it is intended
+to be used on individual functions. The rest of the tester suite
+can still be used in this case, although the inferred generic types
+for the C (Component) and M (Mocks) fields will both simply be
+interfaces. You should ignore those fields in the Options.
+*/
+func NewFunctionTesterWithoutData() *Tester[interface{}, interface{}, interface{}] {
+	tester := emptyTester[interface{}, interface{}, interface{}]()
+	tester.buildMocksFunction = func(t *testing.T) (interface{}, *interface{}) { return nil, nil }
+	tester.initDataFunction = func() *interface{} { return nil }
 	return tester
 }
 

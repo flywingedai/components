@@ -3,6 +3,8 @@ package generate
 import (
 	"fmt"
 	"os"
+	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/flywingedai/components/generate/componentparser"
@@ -18,6 +20,25 @@ func generateTest(structData *componentparser.StructData) {
 		component struct was found in with the _test extenstion.
 	*/
 	fileName := strings.ReplaceAll(structData.StructFile, ".go", "_test.go")
+	if structData.Options.Blackbox && structData.Options.BlackboxFolder != "" {
+		newFolder, err := filepath.Abs(structData.Options.BlackboxFolder)
+		if err != nil {
+			panic(err)
+		}
+
+		// Make the new folder if it doesn't exist
+		_, err = os.Stat(newFolder)
+		if os.IsNotExist(err) {
+			err = os.MkdirAll(newFolder, 0777)
+			if err != nil {
+				panic(err)
+			}
+		} else if err != nil {
+			panic(err)
+		}
+
+		fileName = path.Join(newFolder, strings.ReplaceAll(path.Base(structData.StructFile), ".go", "_test.go"))
+	}
 
 	// Determine the package name for the tests. Add _test if "blackbox"
 	packageName := structData.PackageName

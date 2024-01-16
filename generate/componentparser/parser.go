@@ -62,10 +62,9 @@ func New(cmd *cobra.Command) *Parser {
 Parse everything in the specified directory according to the args.
 */
 func (p *Parser) Parse() {
-	var err error
 
 	// Recursively call ParseDir on each of the dirs
-	filepath.WalkDir(p.Args.Directory, func(dir string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(p.Args.Directory, func(dir string, d fs.DirEntry, err error) error {
 		if err != nil {
 			panic(err)
 		}
@@ -75,6 +74,10 @@ func (p *Parser) Parse() {
 		}
 		return nil
 	})
+
+	if err != nil {
+		panic(err)
+	}
 
 	// Clean up the data.
 	for key, structData := range p.Structs {

@@ -3,4 +3,4 @@ install:
 	go install
 
 mocks:
-	components .
+	components ./examples

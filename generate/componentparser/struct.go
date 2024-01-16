@@ -61,9 +61,11 @@ type StructOptions struct {
 
 	/*
 		Whether or not to generate the tests file for this struct in the same
-		package or as a "blackbox" with the "_test" extension.
+		package or as a "blackbox" with the "_test" extension. If enabled, the
+		folder variable will describe where the blackbox tests go.
 	*/
-	Blackbox bool
+	Blackbox       bool
+	BlackboxFolder string
 
 	// The config to use for the mockery generation
 	Config string
@@ -176,6 +178,8 @@ func (p *Parser) PopulateStructData(structData *StructData, node *ast.StructType
 			structData.Options.MockFile = value
 		case "blackbox":
 			structData.Options.Blackbox = (value == "true")
+		case "blackboxFolder":
+			structData.Options.BlackboxFolder = value
 		case "skipTestFile":
 			structData.Options.SkipTestFile = (value == "true")
 		case "expecters":

@@ -6,6 +6,8 @@ Golang code testing and generation package.
 ### Generation
 **Install:**
 ```sh
+go install github.com/vektra/mockery/v2@latest
+go install golang.org/x/tools/cmd/goimports@latest
 go install github.com/flywingedai/components@latest
 ```
 

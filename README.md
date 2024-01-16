@@ -107,6 +107,9 @@ in the same package as the struct or not. If enabled, this facilitates
 "blackbox" testing where the test files are all part of a new `{{package}}_test`
 package which does not have access to private values within the package. To
 enable, `blackbox::true`
+- **blackboxFolder:** [Optional] Path for the blackbox tests to go. If not set,
+will just live in the same folder that the struct is defined in. To enable,
+`blackboxFolder::$BlackboxTestingFolder`
 - **expecters:** [Optional] Whether or not the generate test file will have
 expecter bindings automatically generated for the given mock fields. Each mock
 that should be included should be separated by a ",". To ignore all values, set
